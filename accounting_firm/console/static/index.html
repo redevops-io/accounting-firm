@@ -353,8 +353,9 @@ const TYPE_COLOR={NUMBER:"var(--number)",FACT:"var(--fact)",PROFESSIONAL_JUDGMEN
   AUTHORITY_INTERPRETATION:"var(--authority)"};
 
 let DATA=null;
+let BASE="__BASE__"; if(BASE.startsWith("__"))BASE="";        // server injects the deployment prefix
 
-function load(){return fetch("/api/deliverable").then(r=>r.json()).then(apply);}
+function load(){return fetch(BASE+"/api/deliverable").then(r=>r.json()).then(apply);}
 function apply(d){
   if(d.error){$("#claims").innerHTML='<div class="loadmsg">Error: '+esc(d.error)+'</div>';return;}
   DATA=d; render(d);
@@ -362,7 +363,7 @@ function apply(d){
 load().catch(e=>{$("#claims").innerHTML='<div class="loadmsg">'+esc(e)+'</div>';});
 
 function post(url,body){
-  return fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},
+  return fetch(BASE+url,{method:"POST",headers:{"Content-Type":"application/json"},
     body:JSON.stringify(body||{})}).then(r=>r.json());
 }
 

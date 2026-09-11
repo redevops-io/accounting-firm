@@ -1,8 +1,10 @@
 """The console HTTP surface — stdlib only (no web framework dependency).
 
-Two things: `GET /api/deliverable` serialises the governed §41 study, and `GET /` serves the single-page
-review UI. Deliberately zero-dependency and read-only for P0–P2 (the sign gate, EXPLAIN and LEDGER
-interactions arrive in P3). A production console would put FastAPI + auth in front of the same serializer.
+Serves the single-page review UI at the base path and the JSON API beneath it: GET `<base>/api/deliverable`,
+POST `<base>/api/sign`, POST `<base>/api/reset`. `FIRM_CONSOLE_BASE` sets the prefix (e.g. `/accounting`)
+so the same app hosts behind a path-routed tunnel (demo.redevops.io/accounting) with no path rewriting;
+empty by default, so local dev and tests use `/` and `/api/*`. A production console would put FastAPI + auth
+in front of the same serializer.
 """
 from __future__ import annotations
 
@@ -15,6 +17,19 @@ from .serialize import ReviewSession
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 _INDEX = os.path.join(HERE, "static", "index.html")
+BASE = os.environ.get("FIRM_CONSOLE_BASE", "").rstrip("/")     # e.g. "/accounting" when path-routed
+
+
+def _subpath(path: str) -> str:
+    """Strip the deployment base prefix so route matching is base-agnostic."""
+    if BASE and (path == BASE or path.startswith(BASE + "/")):
+        return path[len(BASE):] or "/"
+    return path
+
+
+def _index_html() -> bytes:
+    with open(_INDEX, encoding="utf-8") as fh:
+        return fh.read().replace("__BASE__", BASE).encode()
 
 # One live review session (single-tenant demo surface). Lazily created, guarded for the threading server.
 # Reentrant: the POST handlers hold the lock while calling _get_session(), which locks again.
@@ -40,10 +55,9 @@ class _Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_GET(self) -> None:                                    # noqa: N802 (stdlib signature)
-        path = self.path.split("?", 1)[0]
+        path = _subpath(self.path.split("?", 1)[0])
         if path in ("/", "/index.html"):
-            with open(_INDEX, "rb") as fh:
-                self._send(200, fh.read(), "text/html; charset=utf-8")
+            self._send(200, _index_html(), "text/html; charset=utf-8")
         elif path == "/api/deliverable":
             try:
                 self._send(200, json.dumps(_get_session().json()).encode(), "application/json")
@@ -55,7 +69,7 @@ class _Handler(BaseHTTPRequestHandler):
             self._send(404, b'{"error":"not found"}', "application/json")
 
     def do_POST(self) -> None:                                   # noqa: N802
-        path = self.path.split("?", 1)[0]
+        path = _subpath(self.path.split("?", 1)[0])
         try:
             n = int(self.headers.get("Content-Length", 0) or 0)
             body = json.loads(self.rfile.read(n) or b"{}") if n else {}
@@ -80,7 +94,8 @@ class _Handler(BaseHTTPRequestHandler):
 
 def serve(host: str = "127.0.0.1", port: int = 8088) -> None:
     httpd = ThreadingHTTPServer((host, port), _Handler)
-    print(f"CPA review console → http://{host}:{port}  (runtime: {os.environ.get('FIRM_LLM_BASE_URL') and 'live' or 'deterministic'})")
+    print(f"CPA review console → http://{host}:{port}{BASE or '/'}  "
+          f"(runtime: {os.environ.get('FIRM_LLM_BASE_URL') and 'live' or 'deterministic'})")
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
