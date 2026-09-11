@@ -66,7 +66,7 @@ def test_professional_judgment_carries_the_claim_graph():
 def test_three_case_trust_model_all_present():
     t = build_deliverable()["trust_model"]
     # sufficient → compute (A = B)
-    assert t["sufficient"]["credit"] == 30800.0
+    assert t["sufficient"]["value"] == 30800.0 and t["sufficient"]["label"] == "§41 credit"
     # missing → abstain (Borealis held for insufficient evidence)
     assert any(p["subject"] == "Borealis" for p in t["missing"]["projects"])
     assert t["missing"]["escalations"]
@@ -123,6 +123,39 @@ def test_amendment_is_consequential_and_affects_ai_layer_only():
     assert any(o["kind"] == "cpa_amendment" for o in out["learning_outcomes"])
 
 
+def test_engagements_list_zoom_out():
+    d = build_deliverable()
+    engs = {e["id"]: e for e in d["engagements"]}
+    assert set(engs) == {"rd_credit_study", "tech_accounting_memo", "income_tax_provision"}
+    assert engs["rd_credit_study"]["current"] is True
+    assert engs["tech_accounting_memo"]["available"] is True
+    assert engs["income_tax_provision"]["available"] is False        # ○ Available, not built
+
+
+def test_asc606_memo_renders_through_the_same_console():
+    # P5 acceptance: switching deliverable needs no console change — the memo serialises identically.
+    s = ReviewSession("tech_accounting_memo")
+    j = s.json()
+    assert j["deliverable_id"] == "tech_accounting_memo" and j["status"] == "ready_for_review"
+    assert len(j["claims"]) == 6 and all("provenance" in c for c in j["claims"])
+    # a NUMBER claim: no per-engine detail, but the cross-check still agrees (value column)
+    num = next(c for c in j["claims"] if c["type"] == "NUMBER")["provenance"]["computation"]
+    assert num["has_engines"] is False and all(x["agree"] for x in num["cross_check"])
+    # a professional judgment read as a generic Judgment (subject + assessments), policy-derived conclusion
+    pj = next(c for c in j["claims"] if c["type"] == "PROFESSIONAL_JUDGMENT")["provenance"]["judgment"]
+    assert pj["subject"] == "revenue_recognition" and len(pj["assessments"]) == 4
+    # the same sign gate applies
+    assert s.sign("APPROVE")["status"] == "signed"
+
+
+def test_income_tax_provision_is_not_signable():
+    try:
+        ReviewSession("income_tax_provision")
+        assert False, "unavailable deliverable should not open a session"
+    except ValueError:
+        pass
+
+
 def test_http_endpoints_roundtrip_and_sign():
     httpd = ThreadingHTTPServer(("127.0.0.1", 0), _Handler)
     port = httpd.server_address[1]
@@ -143,6 +176,10 @@ def test_http_endpoints_roundtrip_and_sign():
         assert "<!doctype html>" in html.lower() and "claim graph" in html.lower()
         api = get("/api/deliverable")
         assert api["status"] == "ready_for_review" and len(api["claims"]) == 6
+        # the engagement zoom-out is served, and the memo opens through the same endpoint
+        assert len(get("/api/engagements")["engagements"]) == 3
+        memo = get("/api/deliverable?id=tech_accounting_memo")
+        assert memo["deliverable_id"] == "tech_accounting_memo" and len(memo["claims"]) == 6
         signed = post("/api/sign", {"decision": "APPROVE"})
         assert signed["status"] == "signed" and signed["sign_offs"][0]["ledger_ref"]
         # reset returns a fresh, re-signable deliverable

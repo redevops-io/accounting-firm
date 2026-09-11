@@ -53,6 +53,24 @@
          margin:30px 0 12px;font-weight:650}
   .lead{color:var(--muted);font-size:13.5px;margin:-4px 0 16px}
 
+  /* engagement zoom-out */
+  .engzoom{margin:20px 0 6px}
+  .ez-head{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint);font-weight:650;
+           margin-bottom:10px}
+  .ez-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  @media(max-width:720px){.ez-cards{grid-template-columns:1fr}}
+  .ez{border:1px solid var(--border);background:var(--surface);border-radius:10px;padding:12px 14px;
+      display:flex;flex-direction:column;gap:6px;cursor:pointer;transition:border-color .12s,background .12s}
+  .ez:hover{border-color:var(--border-2)}
+  .ez.current{border-color:var(--accent);background:var(--surface-2)}
+  .ez.disabled{cursor:default;opacity:.6}
+  .ez .t{font-size:13.5px;font-weight:600}
+  .ez .s{font-size:12px;display:inline-flex;align-items:center;gap:6px;color:var(--muted)}
+  .ez .s .m{font-size:12px}
+  .ez .s.signed{color:var(--pass)} .ez .s.review{color:var(--warn)} .ez .s.avail{color:var(--faint)}
+  .ez-line{font-size:13px;color:var(--muted);margin-top:12px;font-style:italic}
+  .ez-line b{color:var(--text);font-style:normal}
+
   /* mission trace */
   details.trace{border:1px solid var(--border);border-radius:9px;background:var(--surface);margin:18px 0 4px}
   details.trace summary{cursor:pointer;padding:11px 14px;font-size:12.5px;color:var(--muted);list-style:none;
@@ -280,6 +298,13 @@
 </header>
 
 <div class="wrap">
+  <section class="engzoom" id="engzoom" hidden>
+    <div class="ez-head">The engagement — one firm, several deliverables</div>
+    <div class="ez-cards" id="ez-cards"></div>
+    <div class="ez-line">The §41 engine wasn't the product. The firm is — the same governed console renders
+      every deliverable, and the CPA signs each one.</div>
+  </section>
+
   <div id="tab-deliverable">
     <details class="trace" id="tracebox">
       <summary>▸ How this engagement was produced <span id="trace-cpa" style="margin-left:auto"></span></summary>
@@ -353,9 +378,13 @@ const TYPE_COLOR={NUMBER:"var(--number)",FACT:"var(--fact)",PROFESSIONAL_JUDGMEN
   AUTHORITY_INTERPRETATION:"var(--authority)"};
 
 let DATA=null;
+let CURRENT="rd_credit_study";                                 // which deliverable the console is showing
 let BASE="__BASE__"; if(BASE.startsWith("__"))BASE="";        // server injects the deployment prefix
 
-function load(){return fetch(BASE+"/api/deliverable").then(r=>r.json()).then(apply);}
+function load(id){
+  if(id)CURRENT=id;
+  return fetch(BASE+"/api/deliverable?id="+encodeURIComponent(CURRENT)).then(r=>r.json()).then(apply);
+}
 function apply(d){
   if(d.error){$("#claims").innerHTML='<div class="loadmsg">Error: '+esc(d.error)+'</div>';return;}
   DATA=d; render(d);
@@ -363,8 +392,9 @@ function apply(d){
 load().catch(e=>{$("#claims").innerHTML='<div class="loadmsg">'+esc(e)+'</div>';});
 
 function post(url,body){
-  return fetch(BASE+url,{method:"POST",headers:{"Content-Type":"application/json"},
-    body:JSON.stringify(body||{})}).then(r=>r.json());
+  const sep=url.includes("?")?"&":"?";
+  return fetch(BASE+url+sep+"id="+encodeURIComponent(CURRENT),
+    {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body||{})}).then(r=>r.json());
 }
 
 function render(d){
@@ -379,6 +409,7 @@ function render(d){
     row.appendChild(p);
   });
 
+  renderEngagements(d.engagements);
   renderTrace(d.mission_trace);
   renderReviewZone(d);
   renderTrust(d.trust_model);
@@ -387,6 +418,23 @@ function render(d){
   renderEvidence(d);
   renderExplain(d.explain);
   renderLedger(d);
+}
+
+/* ---------- engagement zoom-out ---------- */
+function renderEngagements(engs){
+  if(!engs||!engs.length)return;
+  const box=$("#ez-cards"); box.innerHTML="";
+  const S={signed:["signed","✓","Signed"],ready_for_review:["review","●","Review"],
+    rejected:["review","✕","Rejected"],available:["avail","○","Available"],not_started:["avail","○","Available"]};
+  engs.forEach(e=>{
+    const st=S[e.status]||S.available;
+    const card=el("div","ez"+(e.current?" current":"")+(e.available?"":" disabled"));
+    card.innerHTML='<div class="t">'+esc(e.title)+'</div>'+
+      '<div class="s '+st[0]+'"><span class="m">'+st[1]+'</span>'+st[2]+'</div>';
+    if(e.available&&!e.current) card.onclick=()=>{closeDrawer();load(e.id);window.scrollTo({top:0,behavior:"smooth"});};
+    box.appendChild(card);
+  });
+  $("#engzoom").hidden=false;
 }
 
 /* ---------- mission trace ---------- */
@@ -496,31 +544,35 @@ function impactPanel(imp,learn){
 /* ---------- trust model ---------- */
 function renderTrust(t){
   const box=$("#trust"); box.innerHTML="";
+  const su=t.sufficient;
   const s=el("div","case suff");
-  s.innerHTML='<div class="cap">Sufficient</div><div class="beh">'+esc(t.sufficient.headline)+'</div>'+
-    '<div class="big">'+money(t.sufficient.credit)+'</div>'+
-    '<small>§41 credit ('+esc(t.sufficient.elected||"—")+' method) · QRE '+money(t.sufficient.qre)+'</small>'+
+  const sub=(su.elected?'('+esc(su.elected)+' method) · ':'')+
+    (su.secondary||[]).map(x=>esc(x.label)+' '+money(x.value)).join(" · ");
+  s.innerHTML='<div class="cap">Sufficient</div><div class="beh">'+esc(su.headline)+'</div>'+
+    '<div class="big">'+money(su.value)+'</div>'+
+    '<small>'+esc(su.label)+(sub?' '+sub:'')+'</small>'+
     '<div class="item">Two independent engines agree on every figure. The number is computed, not asserted.</div>';
   box.appendChild(s);
   const m=el("div","case miss");
   let mi=t.missing.projects.map(p=>'<b>'+esc(p.subject)+'</b> — '+
-    p.assessments.filter(a=>a.result==="INSUFFICIENT").length+' of 4 criteria insufficient').join("<br>")||"none";
+    p.assessments.filter(a=>a.result==="INSUFFICIENT").length+' of '+p.assessments.length+
+    ' criteria insufficient').join("<br>")||"<span style=\"color:var(--faint)\">None — every subject's evidence was sufficient.</span>";
   m.innerHTML='<div class="cap">Missing</div><div class="beh">'+esc(t.missing.headline)+'</div>'+
     '<div class="item">'+mi+'</div>'+
     (t.missing.escalations.length?'<div class="esc">'+esc(t.missing.escalations[0])+'</div>':'')+
-    '<div class="item">It did not invent the missing evidence. It excluded the project from the credit.</div>';
+    '<div class="item">It did not invent missing evidence. It excludes the item and asks a human.</div>';
   box.appendChild(m);
   const c=el("div","case conf");
-  let ci="none";
+  let ci='<span style="color:var(--faint)">None — all sources reconciled.</span>';
   if(t.conflicting.reconciliations.length){
     const r=t.conflicting.reconciliations[0];
-    ci='<b>'+esc(r.source_a)+'</b> '+r.value_a+'% vs <b>'+esc(r.source_b)+'</b> '+r.value_b+
-       '% · Δ '+Math.abs(r.difference).toFixed(0)+'pp';
+    ci='<b>'+esc(r.source_a)+'</b> '+r.value_a+' vs <b>'+esc(r.source_b)+'</b> '+r.value_b+
+       ' · Δ '+Math.abs(r.difference).toFixed(0);
   }
   c.innerHTML='<div class="cap">Conflicting</div><div class="beh">'+esc(t.conflicting.headline)+'</div>'+
     '<div class="item">'+ci+'</div>'+
     (t.conflicting.escalations.length?'<div class="esc block">'+esc(t.conflicting.escalations[0])+'</div>':'')+
-    '<div class="item">Conflicting evidence is not averaged away. No calculation is performed on the disputed allocation.</div>';
+    '<div class="item">Conflicting evidence is not averaged away. No calculation runs on the disputed figure.</div>';
   box.appendChild(c);
 }
 
@@ -598,18 +650,27 @@ function computationView(comp){
   const w=el("div");
   const banner=el("div","xcbanner");
   banner.innerHTML='<span class="ico">'+(comp.agreement?"✓":"✕")+'</span>'+
-    (comp.agreement?"CROSS-CHECK PASSED — two independent implementations of IRC §41 agree on every figure"
+    (comp.agreement?"CROSS-CHECK PASSED — two independent engines ("+esc(comp.engine)+" · "+
+       esc(comp.cross_validator)+") agree on every figure"
                     :"CROSS-CHECK FAILED — engines disagree; number withheld");
   w.appendChild(banner);
   const t=el("table","xc");
-  t.innerHTML='<tr><th>Figure</th><th>Engine A</th><th>Engine B</th><th>✓</th></tr>';
-  comp.cross_check.forEach(x=>{
-    t.innerHTML+='<tr><td>'+esc(x.figure.toUpperCase())+'</td><td>'+money(x.engine_a)+'</td>'+
-      '<td>'+money(x.engine_b)+'</td><td style="color:'+(x.agree?"var(--pass)":"var(--block)")+'">'+
-      (x.agree?"=":"≠")+'</td></tr>';
-  });
+  if(comp.has_engines){
+    t.innerHTML='<tr><th>Figure</th><th>Engine A</th><th>Engine B</th><th>✓</th></tr>';
+    comp.cross_check.forEach(x=>{
+      t.innerHTML+='<tr><td>'+esc(x.figure.toUpperCase())+'</td><td>'+money(x.engine_a)+'</td>'+
+        '<td>'+money(x.engine_b)+'</td><td style="color:'+(x.agree?"var(--pass)":"var(--block)")+'">'+
+        (x.agree?"=":"≠")+'</td></tr>';
+    });
+  }else{
+    t.innerHTML='<tr><th>Figure</th><th>Value</th><th>✓</th></tr>';
+    comp.cross_check.forEach(x=>{
+      t.innerHTML+='<tr><td>'+esc(x.figure.replace(/_/g," "))+'</td><td>'+money(x.value)+'</td>'+
+        '<td style="color:'+(x.agree?"var(--pass)":"var(--block)")+'">'+(x.agree?"✓":"≠")+'</td></tr>';
+    });
+  }
   w.appendChild(t);
-  const h=el("div","prov-h"); h.textContent="Elected method · "+(comp.elected||"—"); w.appendChild(h);
+  if(comp.elected){const h=el("div","prov-h"); h.textContent="Elected method · "+esc(comp.elected); w.appendChild(h);}
   const comps=comp.components||{};
   if(Object.keys(comps).length){
     const ct=el("table","xc");

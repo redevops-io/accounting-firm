@@ -98,7 +98,8 @@ def _criteria(facts: dict) -> list[Criterion]:
     ]
 
 
-def run(engagement: Engagement, paths: dict[str, str], cpa_review, provider=None) -> tuple[Deliverable, Ledger]:
+def run(engagement: Engagement, paths: dict[str, str], cpa_review=None, provider=None) -> tuple[Deliverable, Ledger]:
+    """With `cpa_review` it runs through the sign gate; without it, stops at ready_for_review (prepare)."""
     provider = provider or select_provider()
     led = select_ledger(engagement.engagement_id)
     led.append("engagement.start", {"client": engagement.client, "type": engagement.deliverable_type,
@@ -158,4 +159,6 @@ def run(engagement: Engagement, paths: dict[str, str], cpa_review, provider=None
     ]
     led.append("claims.assembled", {"n": len(d.claims)})
 
+    if cpa_review is None:                                    # prepare only — a review surface signs later
+        return mission.prepare(engagement, d, led, provider)
     return mission.finalize(engagement, d, led, cpa_review, provider)
