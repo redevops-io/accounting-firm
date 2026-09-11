@@ -67,6 +67,23 @@ python3 tests/test_providers.py # the model seam (stubbed, no network)
 python3 tests/test_memo.py      # the second deliverable
 ```
 
+## Go-live (real backends)
+
+```
+# 1. build the authority corpus into a redevops-rag Store (grounding)
+PYTHONPATH=. /path/to/redevops-rag/.venv/bin/python scripts/build_corpus.py corpus.duckdb
+
+# 2. run with real grounding + durable ledger + a live model
+export FIRM_CORPUS=rag FIRM_RAG_DB=corpus.duckdb
+export FIRM_LEDGER=agentic-os MISSION_EVENT_BACKEND=duckdb MISSION_EVENT_PATH=firm_ledger.duckdb
+export FIRM_LLM_BASE_URL=http://<host>/v1 FIRM_LLM_MODEL=<model> FIRM_LLM_API_KEY=<key>
+python3 demo.py
+```
+
+Verified: the corpus index grounds real IRC §41 / ASC 606 authorities and rejects fabricated ones; the
+agentic-os DuckDB ledger persists the audit trail across restarts; the model seam drives judgment/drafting
+via any OpenAI-compatible endpoint. All default to offline when unset.
+
 ## Not yet (hard, fail-closed gates before any real client deliverable)
 
 Licensure of the signing CPA + PTIN/EFIN; E&O/malpractice cover; SOC 2 + PII/retention; e-file/MeF where
