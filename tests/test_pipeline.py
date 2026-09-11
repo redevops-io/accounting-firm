@@ -77,6 +77,25 @@ def test_cpa_amendment_emits_learning_outcome():
     assert all(o.context.get("stage") for o in outs if o.kind == "cpa_amendment")
 
 
+def test_scanned_payroll_multiformat_ingestion():
+    # Phase 3: an unstructured/"scanned" payroll (free text) yields the same result as the clean CSV
+    paths = dict(PATHS, payroll=f"{DATA}/payroll_scanned.txt")
+    d, _ = rd_credit_study.run(_eng(), paths, _approve)
+    assert d.status == "signed"
+    assert next(c for c in d.computations if c.name == "rd_credit").outputs["credit"] == 43400.0
+
+
+def test_extraction_confidence_gate_escalates():
+    import tempfile
+    with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False) as fh:
+        fh.write("garbled scan with no readable rows\n")
+        bad = fh.name
+    paths = dict(PATHS, payroll=bad)
+    d, led = rd_credit_study.run(_eng(), paths, _approve)
+    assert d.status == "escalated" and any("correction" in e for e in d.escalations)
+    os.remove(bad)
+
+
 if __name__ == "__main__":
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     for fn in fns:

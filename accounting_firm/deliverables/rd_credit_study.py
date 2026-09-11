@@ -8,6 +8,7 @@ four-part assessment and the drafting go through the `Provider` (deterministic o
 from __future__ import annotations
 
 import csv
+import os
 import re
 from dataclasses import asdict
 
@@ -37,21 +38,63 @@ def _rows(path: str) -> list[list[str]]:
         return [[c.strip() for c in row] for row in csv.reader(fh, skipinitialspace=True)]
 
 
-def extract(paths: dict[str, str]) -> tuple[dict, list[SourceDocument]]:
+def _alloc(s: str) -> dict:
+    return {p: int(pct) / 100 for p, pct in re.findall(r"([A-Za-z]+)\s+(\d+)%", s or "")}
+
+
+def _payroll_csv(path: str) -> list[dict]:
+    out = []
+    for i, r in enumerate(_rows(path)):
+        if i == 0 or len(r) < 4 or not r[2] or r[0].lower().startswith("notes"):
+            continue
+        a = _alloc(r[3])
+        if a:
+            out.append({"name": r[0], "wages": _money(r[2]), "alloc": a, "row": i + 1})
+    return out
+
+
+def _payroll_text(path: str) -> list[dict]:
+    """A 'scanned'/OCR'd payroll: whitespace-delimited free text (name  dept  $wages  allocations)."""
+    out = []
+    with open(path) as fh:
+        for i, line in enumerate(fh):
+            cols = re.split(r"\s{2,}", line.strip())
+            if len(cols) < 4 or "$" not in cols[2]:
+                continue
+            a = _alloc(cols[3])
+            if a:
+                out.append({"name": cols[0], "wages": _money(cols[2]), "alloc": a, "row": i + 1})
+    return out
+
+
+def _employees(path: str, provider) -> tuple[list[dict], float]:
+    """Multi-format payroll ingestion: clean CSV (deterministic) or an unstructured/scanned export
+    (LLM table extraction, falling back to a deterministic messy-text parser). Returns (rows, confidence)."""
+    if path.lower().endswith(".csv"):
+        return _payroll_csv(path), 0.97
+    with open(path) as fh:
+        text = fh.read()
+    rows = provider.extract_table("Extract each employee row from this payroll export.", text,
+                                  ["name", "wages", "allocation"])
+    emps = []
+    for i, r in enumerate(rows):
+        a = _alloc(str(r.get("allocation", "")))
+        if a and r.get("wages") is not None:
+            emps.append({"name": str(r.get("name", "")), "wages": _money(str(r["wages"])), "alloc": a, "row": i + 1})
+    if emps:
+        return emps, 0.85                                # LLM extraction of the unstructured export
+    return _payroll_text(path), 0.75                     # deterministic messy-text fallback
+
+
+def extract(paths: dict[str, str], provider=None) -> tuple[dict, list[SourceDocument]]:
+    provider = provider or select_provider()
     docs: list[SourceDocument] = []
     facts: dict = {}
 
-    employees = []
-    for i, r in enumerate(_rows(paths["payroll"])):
-        if i == 0 or len(r) < 4 or not r[2] or r[0].lower().startswith("notes"):
-            continue
-        alloc = {p: int(pct) / 100 for p, pct in re.findall(r"([A-Za-z]+)\s+(\d+)%", r[3])}
-        if not alloc:
-            continue
-        employees.append({"name": r[0], "wages": _money(r[2]), "alloc": alloc, "row": i + 1})
+    employees, pconf = _employees(paths["payroll"], provider)   # CSV or unstructured/scanned (multi-format)
     facts["employees"] = employees
     docs.append(SourceDocument("payroll", "payroll_export", paths["payroll"], {"employees": len(employees)},
-                               Confidence(extraction=0.97, evidence_completeness=0.9), "parser/v0"))
+                               Confidence(extraction=pconf, evidence_completeness=0.9), "ingest/v1"))
 
     gl = {}
     for r in _rows(paths["gl"])[1:]:
@@ -133,11 +176,19 @@ def run(engagement: Engagement, paths: dict[str, str], cpa_review, provider=None
     led.append("engagement.start", {"client": engagement.client, "type": engagement.deliverable_type,
                                     "provider": provider.name})
 
-    facts, docs = extract(paths)
-    led.append("documents.ingested", {"docs": [d.kind for d in docs]})
+    facts, docs = extract(paths, provider)
+    led.append("documents.ingested", {"docs": [dd.kind for dd in docs]})
     led.append("facts.extracted", {"employees": len(facts["employees"]), "gl": facts["gl"]})
 
     d = Deliverable(engagement=engagement)
+
+    # correction gate: fail closed if extraction confidence is below threshold (human correction required)
+    min_conf = min((dd.confidence.extraction for dd in docs), default=1.0)
+    if not facts["employees"] or min_conf < float(os.environ.get("FIRM_EXTRACT_MIN_CONF", "0.6")):
+        d.status = "escalated"
+        d.escalations.append(f"extraction confidence {min_conf:.2f} below threshold — human correction required")
+        led.append("escalated", {"reason": "extraction_confidence", "min_conf": round(min_conf, 2)})
+        return d, led
 
     payroll_gross = round(sum(e["wages"] for e in facts["employees"]), 2)
     rec = reconcile.reconcile("payroll_export", payroll_gross, "gl_extract", facts["gl"].get("wages_total", 0),

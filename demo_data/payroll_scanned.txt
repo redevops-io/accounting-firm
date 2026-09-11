@@ -1,0 +1,4 @@
+Employee            Department    Gross Wages   R&D Allocation
+Alice Chen          Engineering   $180,000      Atlas 80%
+Vik Rao             R&D           $150,000      Atlas 60%; Borealis 20%
+Dana Lee            Product       $120,000      Atlas 50%

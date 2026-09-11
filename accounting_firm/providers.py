@@ -35,6 +35,9 @@ class DeterministicProvider:
     def extract(self, system: str, raw_text: str, fields: list[str]) -> dict:
         return {}                                     # offline: the deliverable's deterministic parser handles it
 
+    def extract_table(self, system: str, raw_text: str, columns: list[str]) -> list[dict]:
+        return []                                     # offline: the deliverable's deterministic parser handles it
+
 
 # ── real model (OpenAI-compatible; env-gated) ────────────────────────────────────
 class LLMProvider:
@@ -70,6 +73,16 @@ class LLMProvider:
         except Exception:
             return {}
 
+    def extract_table(self, system: str, raw_text: str, columns: list[str]) -> list[dict]:
+        """Extract every row of an unstructured table (e.g. a scanned payroll) as JSON objects."""
+        user = (f"Document:\n{raw_text[:6000]}\n\nExtract EVERY data row as a JSON array of objects with keys "
+                f"{columns}. Return only the JSON array.")
+        try:
+            data = json.loads(_json_slice_array(self.chat(system, user)))
+            return [{c: r.get(c) for c in columns} for r in data if isinstance(r, dict)]
+        except Exception:
+            return []
+
     def draft(self, engagement: Engagement, d: Deliverable) -> str:
         graph = [{"id": c.claim_id, "type": c.claim_type.value, "assertion": c.assertion} for c in d.claims]
         comps = [{"name": c.name, "outputs": c.outputs} for c in d.computations]
@@ -98,6 +111,11 @@ def _parse_assessment(criterion: str, obj) -> Assessment:
 
 def _json_slice(s: str) -> str:
     i, j = s.find("{"), s.rfind("}")
+    return s[i:j + 1] if i >= 0 and j > i else s
+
+
+def _json_slice_array(s: str) -> str:
+    i, j = s.find("["), s.rfind("]")
     return s[i:j + 1] if i >= 0 and j > i else s
 
 
