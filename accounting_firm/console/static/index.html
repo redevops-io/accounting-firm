@@ -201,11 +201,29 @@
        padding:12px 15px;margin-bottom:14px;font-size:13px;color:#bfeede}
   .sealbox .seal{font-family:var(--mono);color:var(--text)}
 
-  /* runtime map — left panel (never overlaps the right provenance drawer) */
-  nav.tabs .rtbtn{margin-left:auto;border:1px solid var(--border-2);background:var(--surface-2);
-    color:var(--muted);border-radius:7px;padding:6px 11px;font-size:12.5px;cursor:pointer;align-self:center}
+  /* nav tool buttons (guide + runtime map) */
+  nav.tabs .rtbtn{border:1px solid var(--border-2);background:var(--surface-2);
+    color:var(--muted);border-radius:7px;padding:6px 11px;font-size:12.5px;cursor:pointer;align-self:center;
+    margin-left:8px}
+  nav.tabs .gbtn{margin-left:auto}
   nav.tabs .rtbtn:hover{color:var(--text)}
   nav.tabs .rtbtn.on{color:var(--text);border-color:var(--accent)}
+
+  /* guided tour — numbered badges + hover summary */
+  .tour-seg{position:relative}
+  .tourbadge{position:absolute;top:10px;right:10px;width:22px;height:22px;border-radius:50%;
+    background:var(--accent);color:#08111f;font-size:12px;font-weight:800;display:flex;align-items:center;
+    justify-content:center;z-index:6;box-shadow:0 2px 8px rgba(0,0,0,.45);cursor:help;border:2px solid var(--surface)}
+  .tourbadge.inline{position:static;display:inline-flex;width:19px;height:19px;font-size:11px;
+    margin-right:8px;vertical-align:middle;border-color:var(--bg)}
+  .tour-seg.hl{outline:1.5px dashed rgba(122,162,255,.45);outline-offset:5px;border-radius:10px}
+  .tourtip{position:fixed;max-width:300px;background:var(--surface-3);border:1px solid var(--border-2);
+    border-radius:9px;padding:11px 13px;box-shadow:var(--shadow);z-index:70;font-size:12.5px;color:var(--text);
+    opacity:0;pointer-events:none;transition:opacity .12s;line-height:1.5}
+  .tourtip.show{opacity:1}
+  .tourtip .k{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--accent);
+    font-weight:700;margin-bottom:4px}
+  .tourtip .tt{font-weight:700;margin-bottom:3px}
   .rtmap{position:fixed;left:0;top:0;bottom:0;width:344px;background:var(--surface);
     border-right:1px solid var(--border);transform:translateX(-100%);transition:transform .22s cubic-bezier(.4,0,.2,1);
     z-index:45;overflow-y:auto;box-shadow:12px 0 40px rgba(0,0,0,.35)}
@@ -333,6 +351,7 @@
     <button data-tab="evidence">Evidence</button>
     <button data-tab="explain">Explain</button>
     <button data-tab="ledger">Ledger</button>
+    <button class="rtbtn gbtn" id="tourbtn" title="Show a numbered walkthrough with a summary on each segment">① Guide</button>
     <button class="rtbtn" id="rtbtn" title="Show which runtime elements each step exercises">⧉ Runtime map</button>
   </nav>
 </header>
@@ -355,12 +374,12 @@
 
     <div id="reviewzone"></div>
 
-    <h2 class="sec">The trust model — three cases, made explicit</h2>
+    <h2 class="sec" id="sec-trust">The trust model — three cases, made explicit</h2>
     <div class="lead">The system computes only when evidence is sufficient. When evidence is missing it abstains;
       when it conflicts it refuses to resolve silently.</div>
     <div class="trust" id="trust"></div>
 
-    <h2 class="sec">The deliverable — challenge any statement</h2>
+    <h2 class="sec" id="sec-deliverable">The deliverable — challenge any statement</h2>
     <div class="lead">Every material sentence is a claim with provenance. Click one to see its evidence, cited
       authority, or the cross-checked computation behind it.</div>
     <div id="claims"></div>
@@ -398,6 +417,8 @@
   </div>
 </div>
 
+<div class="tourtip" id="tourtip"></div>
+
 <aside class="rtmap" id="rtmap" aria-hidden="true">
   <div class="rh">
     <div class="tt">ReDevOps runtime — what this step exercises</div>
@@ -433,6 +454,7 @@ const TYPE_COLOR={NUMBER:"var(--number)",FACT:"var(--fact)",PROFESSIONAL_JUDGMEN
 let DATA=null;
 let CURRENT="rd_credit_study";                                 // which deliverable the console is showing
 let CURTAB="deliverable", OPENTYPE=null, REVIEWCTX=null;       // drive the runtime-map highlight
+let TOUR_ON=true;                                              // numbered guided walkthrough
 let BASE="__BASE__"; if(BASE.startsWith("__"))BASE="";        // server injects the deployment prefix
 
 function load(id){
@@ -536,6 +558,66 @@ function toggleRuntimeMap(force){
   if(open)updateRuntimeMap();
 }
 
+/* ---------- guided tour: numbered steps + hover summary ---------- */
+const TOUR=[
+  {sel:"#sec-deliverable",mode:"inline",tt:"The work product",
+   s:"Start here. Every material sentence is a claim — click any to see its evidence, cited authority, or cross-checked computation."},
+  {sel:".case.suff",mode:"corner",tt:"Sufficient → compute",
+   s:"When evidence is sufficient, the figure is computed by code and cross-checked (Engine A = Engine B). It is derived, not asserted."},
+  {sel:".case.miss",mode:"corner",tt:"Missing → abstain",
+   s:"When evidence is missing, the item is held from the calculation and escalated to a human — never guessed (e.g. Project Borealis)."},
+  {sel:".case.conf",mode:"corner",tt:"Conflicting → reconcile",
+   s:"When two sources disagree, the figure is held BLOCKING and no calculation runs on it. Conflicting evidence is never averaged."},
+  {sel:"#reviewzone",mode:"corner",tt:"You sign",
+   s:"You are the authority: Approve, Amend, or Reject. The decision seals the append-only, hash-chained evidence ledger."},
+  {sel:"#engzoom",mode:"corner",tt:"Same firm, another product",
+   s:"Switch deliverables — the same governed console renders the ASC 606 memo with no change. The firm is the product, not one engine."},
+];
+
+function clearTour(){
+  document.querySelectorAll(".tourbadge").forEach(b=>b.remove());
+  document.querySelectorAll(".tour-seg").forEach(e=>e.classList.remove("tour-seg","hl"));
+  hideTip();
+}
+
+function applyTour(){
+  clearTour();
+  if(!TOUR_ON)return;
+  TOUR.forEach((step,i)=>{
+    const el=$(step.sel); if(!el)return;
+    const n=i+1;
+    const badge=document.createElement("span");
+    badge.className="tourbadge"+(step.mode==="inline"?" inline":"");
+    badge.textContent=n;
+    if(step.mode==="inline"){el.insertBefore(badge,el.firstChild);}
+    else{el.classList.add("tour-seg"); el.appendChild(badge);}
+    const enter=()=>{ if(step.mode!=="inline")el.classList.add("hl"); showTip(badge,n,step); };
+    const leave=()=>{ el.classList.remove("hl"); hideTip(); };
+    (step.mode==="inline"?badge:el).addEventListener("mouseenter",enter);
+    (step.mode==="inline"?badge:el).addEventListener("mouseleave",leave);
+  });
+}
+
+function showTip(anchor,n,step){
+  const tip=$("#tourtip");
+  tip.innerHTML='<div class="k">Step '+n+' of '+TOUR.length+'</div>'+
+    '<div class="tt">'+esc(step.tt)+'</div><div>'+esc(step.s)+'</div>';
+  tip.classList.add("show");
+  const r=anchor.getBoundingClientRect(), tw=tip.offsetWidth, th=tip.offsetHeight, m=10;
+  let x=Math.min(r.left, window.innerWidth-tw-m);
+  x=Math.max(m,x);
+  let y=r.bottom+8;
+  if(y+th>window.innerHeight-m) y=Math.max(m,r.top-th-8);     // flip above if no room below
+  tip.style.left=x+"px"; tip.style.top=y+"px";
+}
+function hideTip(){$("#tourtip").classList.remove("show");}
+
+function toggleTour(force){
+  TOUR_ON=force!==undefined?force:!TOUR_ON;
+  $("#tourbtn").classList.toggle("on",TOUR_ON);
+  applyTour();
+}
+
 function render(d){
   $("#engline").textContent=d.engagement.client+" · "+d.engagement.scope;
   const st=$("#statustag"); st.textContent=d.status.replace(/_/g," ");
@@ -558,6 +640,7 @@ function render(d){
   renderExplain(d.explain);
   renderLedger(d);
   updateRuntimeMap();
+  applyTour();                                                 // re-badge the (re-rendered) segments
 }
 
 /* ---------- engagement zoom-out ---------- */
@@ -955,10 +1038,13 @@ document.querySelectorAll("nav.tabs button[data-tab]").forEach(b=>{
   };
 });
 
-/* ---------- runtime map init ---------- */
+/* ---------- runtime map + guided tour init ---------- */
 renderRuntimeMap();
 $("#rtbtn").onclick=()=>toggleRuntimeMap();
 if(window.innerWidth>=1400) toggleRuntimeMap(true);            // open by default with room to spare
+$("#tourbtn").onclick=()=>toggleTour();
+$("#tourbtn").classList.toggle("on",TOUR_ON);
+window.addEventListener("scroll",hideTip,{passive:true});
 </script>
 </body>
 </html>
