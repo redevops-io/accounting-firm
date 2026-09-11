@@ -1,0 +1,6 @@
+MASTER SUBSCRIPTION AGREEMENT — Acme Corp
+
+Total contract fee: $120,000 for a 12-month term commencing 2025-07-01.
+The Provider grants access to its hosted SaaS platform continuously over the subscription term; the customer
+simultaneously receives and consumes the benefits of the service as the Provider performs. Payment is due
+quarterly; collection is probable.

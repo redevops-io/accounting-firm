@@ -34,6 +34,20 @@ CORPUS: dict[str, tuple[str, tuple[str, ...]]] = {
         "Uncertainty exists if the information available to the taxpayer does not establish the capability or "
         "method for developing or improving the business component, or the appropriate design.",
         ("uncertainty", "capability", "method", "design")),
+    # ASC 606 — revenue recognition (technical accounting memo)
+    "ASC 606-10-25-1": (
+        "An entity shall account for a contract with a customer only when the parties have approved the "
+        "contract, each party's rights and the payment terms are identifiable, the contract has commercial "
+        "substance, and collection of the consideration is probable.",
+        ("contract", "customer", "payment terms", "collection")),
+    "ASC 606-10-25-27": (
+        "An entity recognizes revenue over time if the customer simultaneously receives and consumes the "
+        "benefits provided by the entity's performance as the entity performs.",
+        ("over time", "performance obligation", "benefits")),
+    "ASC 606-10-32-2": (
+        "The transaction price is the amount of consideration to which an entity expects to be entitled in "
+        "exchange for transferring promised goods or services to a customer.",
+        ("transaction price", "consideration")),
 }
 
 

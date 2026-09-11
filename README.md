@@ -34,24 +34,34 @@ The demo qualifies *Project Atlas*, **escalates** *Project Borealis* (insufficie
 computes a cross-checked **$43,400** credit (ASC), verifies all six claims, and records a signed,
 hash-chained audit ledger.
 
+## Two deliverables, one runtime (genericity)
+
+A second deliverable — an **ASC 606 technical accounting memo** (`deliverables/tech_accounting_memo.py`) —
+runs through the *same* shared loop (`mission.finalize`) and the *same* reconcile / claims / verify / ledger /
+provider machinery as the §41 study. A new deliverable is a new module: its own extraction, deterministic
+calc (with an A/B cross-check), and criteria — **no change to the core loop**.
+
 ## What is real vs. a seam
 
-- **Real & deterministic:** the §41 engine + independent cross-check (`section41/`), the four-part
-  **conclusion policy**, reconciliation, the **claim graph + verifier**, the governed pipeline, the
-  append-only **evidence ledger**, and the CPA sign gate.
-- **Seams (deterministic stand-ins today):** document **extraction** and per-criterion **assessment** and
-  **drafting** are the LLM insertion points — implemented as deterministic parsers/fixtures for the demo so
-  it runs offline. In production these become Context-Runtime model calls behind the same signatures; nothing
-  else changes.
-- **Runtime integration points:** ledger → `agentic-os` DuckDB/Postgres event ledger; retrieval → `redevops-rag`;
-  CPA-amendment learning → `context-runtime` (AI layer only — never the tax rules).
+- **Real & deterministic:** the §41 engine + independent cross-check (`section41/`), the ASC 606 recognition
+  schedule + cross-check, the four-part / policy **conclusions**, reconciliation, the **claim graph +
+  verifier**, the shared governed loop (`mission.py`), the append-only **evidence ledger**, and the CPA sign gate.
+- **The model seam (`providers.py`):** per-criterion **assessment** and **drafting** go through a `Provider`.
+  `DeterministicProvider` is the offline default (demo/tests); `LLMProvider` (OpenAI-compatible, `FIRM_LLM_*`)
+  does real judgment/drafting — even then it fills PASS/FAIL/INSUFFICIENT per criterion and a deterministic
+  policy concludes. Document extraction is a deterministic parser today (unstructured OCR/LLM ingestion is Phase 3).
+- **Runtime integration points (next):** ledger → `agentic-os` DuckDB/Postgres event ledger; grounding →
+  `redevops-rag`; CPA-amendment learning → `context-runtime` (AI layer only — never the tax rules).
 
 ## Run
 
 ```
-python3 demo.py                 # the flagship milestone
+python3 demo.py                 # flagship: §41 R&D credit study
+python3 demo_memo.py            # second deliverable: ASC 606 memo (same runtime)
 python3 tests/test_section41.py # deterministic §41 core (engines agree)
-python3 tests/test_pipeline.py  # the end-to-end gate sequence
+python3 tests/test_pipeline.py  # §41 end-to-end gate sequence
+python3 tests/test_providers.py # the model seam (stubbed, no network)
+python3 tests/test_memo.py      # the second deliverable
 ```
 
 ## Not yet (hard, fail-closed gates before any real client deliverable)

@@ -11,12 +11,19 @@ import csv
 import re
 from dataclasses import asdict
 
-from .. import claims, reconcile, verify
-from ..contracts import (AuthorityRef, ClaimType, Computation, Conclusion, Confidence, Deliverable,
-                        EvidenceRef, Engagement, LearningOutcome, SignOff, SourceDocument)
+from .. import claims, mission, reconcile
+from ..contracts import (AuthorityRef, ClaimType, Computation, Conclusion, Confidence, Criterion, Deliverable,
+                        EvidenceRef, Engagement, ResearchQualification, SourceDocument)
 from ..ledger import Ledger
 from ..providers import select_provider
-from ..section41 import QREInputs, compute_credit
+from ..section41 import QREInputs, compute_credit, conclude
+
+SYS_41 = ("You are a tax professional applying the IRC §41(d)(1) four-part test to ONE project. Assess each "
+          "criterion independently; do NOT decide overall qualification — policy does that from your four "
+          "assessments.")
+_A41D = (AuthorityRef("IRC §41(d)(1)", "qualified research"),)
+_REG_UNC = (AuthorityRef("Treas. Reg. §1.41-4(a)(3)", "uncertainty"),)
+_REG_EXP = (AuthorityRef("Treas. Reg. §1.41-4(a)(5)", "process of experimentation"),)
 
 
 # ── extraction (deterministic parser for structured docs; LLM/OCR is Phase-3 ingestion) ──
@@ -67,6 +74,7 @@ def extract(paths: dict[str, str]) -> tuple[dict, list[SourceDocument]]:
     for key in ("project_desc", "engineering"):
         with open(paths[key]) as fh:
             text = fh.read()
+        facts.setdefault("texts", {})[key] = text
         for m in re.finditer(r"Project\s+([A-Za-z]+)\s*[:\-]\s*(.+)", text):
             facts["projects"].setdefault(m.group(1), m.group(2)[:300])
         docs.append(SourceDocument(key, "project_description" if key == "project_desc" else "engineering_doc",
@@ -80,6 +88,42 @@ def extract(paths: dict[str, str]) -> tuple[dict, list[SourceDocument]]:
     docs.append(SourceDocument("prior_year", "prior_year_returns", paths["prior_year"], py,
                                Confidence(extraction=0.95, evidence_completeness=0.9), "parser/v0"))
     return facts, docs
+
+
+# ── per-project four-part criteria (hints derived deterministically from the evidence) ──
+def _span(text: str, project: str) -> str:
+    m = re.search(rf"Project\s+{re.escape(project)}\b(.+?)(?=Project\s+[A-Z]|\Z)", text, re.S)
+    return (m.group(1) if m else "").lower()
+
+
+def _hints(project: str, facts: dict) -> dict:
+    pdesc = _span(facts["texts"].get("project_desc", ""), project)
+    eng = facts["texts"].get("engineering", "").lower()
+    has_exp = project.lower() in eng and any(k in eng for k in ("experiment", "trial", "benchmark", "alternativ"))
+    return {"permitted_purpose": True, "technological_in_nature": True,
+            "elimination_of_uncertainty": "uncertain" in pdesc,
+            "process_of_experimentation": has_exp}
+
+
+def _criteria(project: str, facts: dict) -> list[Criterion]:
+    h = _hints(project, facts)
+    ev_p = (EvidenceRef("project_desc", f"Project {project}"),)
+    ev_e = (EvidenceRef("engineering", f"Project {project} experimentation log"),)
+    return [
+        Criterion("permitted_purpose", "develops a new or improved business component?", _A41D, ev_p, h["permitted_purpose"]),
+        Criterion("technological_in_nature", "relies on principles of the hard sciences/engineering?", _A41D, ev_p, h["technological_in_nature"]),
+        Criterion("elimination_of_uncertainty", "uncertainty as to capability/method/design at the outset?", _REG_UNC, ev_e, h["elimination_of_uncertainty"]),
+        Criterion("process_of_experimentation", "substantially all activities are a process of experimentation?", _REG_EXP, ev_e, h["process_of_experimentation"]),
+    ]
+
+
+def _assess_project(provider, project: str, facts: dict) -> ResearchQualification:
+    crit = _criteria(project, facts)
+    evidence = f"{facts['texts'].get('project_desc','')}\n{facts['texts'].get('engineering','')}"
+    a = provider.assess(SYS_41, evidence, crit)
+    parts = (a["permitted_purpose"], a["technological_in_nature"],
+             a["elimination_of_uncertainty"], a["process_of_experimentation"])
+    return ResearchQualification(project, *parts, conclusion=conclude(*parts))
 
 
 # ── the governed mission ────────────────────────────────────────────────────────
@@ -106,7 +150,7 @@ def run(engagement: Engagement, paths: dict[str, str], cpa_review, provider=None
 
     qualified = []
     for proj in ("Atlas", "Borealis"):
-        q = provider.assess(proj, facts); d.qualifications.append(q)
+        q = _assess_project(provider, proj, facts); d.qualifications.append(q)
         led.append("assessed", {"project": proj, "conclusion": q.conclusion.value})
         if q.conclusion == Conclusion.QUALIFIED:
             qualified.append(proj)
@@ -156,30 +200,5 @@ def run(engagement: Engagement, paths: dict[str, str], cpa_review, provider=None
     ]
     led.append("claims.assembled", {"n": len(d.claims)})
 
-    d.rendered = provider.draft(engagement, d, cr, qualified)
-    led.append("drafted", {"chars": len(d.rendered), "provider": provider.name})
-
-    v = verify.verify(d)
-    led.append("verified", {"all_ok": v["all_ok"], "blocking": v["blocking_claims"]})
-    if not v["all_ok"]:
-        d.status = "escalated"; d.escalations.append(f"unverified claims: {v['blocking_claims']}"); return d, led
-
-    d.status = "ready_for_review"
-    signoff: SignOff = cpa_review(d)
-    d.sign_offs.append(signoff)
-    led.append("signoff", {"decision": signoff.decision.value, "amendments": len(signoff.amendments),
-                           "cpa": signoff.cpa_principal})
-    d.status = {"APPROVE": "signed", "AMEND": "signed", "REJECT": "rejected"}[signoff.decision.value]
-    signoff.ledger_ref = led.events()[-1].hash
-
-    outcomes = [LearningOutcome(context={"stage": am.get("stage", "draft"), "claim": am["claim_id"],
-                                         "provider": provider.name},
-                                decision=am.get("ai_choice", "draft"), reward=-0.5, kind="cpa_amendment")
-                for am in signoff.amendments]
-    if signoff.decision.value == "APPROVE":
-        outcomes.append(LearningOutcome(context={"deliverable": engagement.deliverable_type,
-                                                 "provider": provider.name},
-                                        decision="accepted_as_drafted", reward=1.0))
-    led.append("learning", {"outcomes": len(outcomes)})
-    setattr(d, "learning_outcomes", outcomes)
-    return d, led
+    # shared governed tail: draft → verify → CPA review/sign → learn
+    return mission.finalize(engagement, d, led, cpa_review, provider)

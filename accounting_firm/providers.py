@@ -1,96 +1,74 @@
-"""The model seam — judgment (the four-part assessment) and narrative (drafting).
+"""The model seam — deliverable-agnostic judgment + drafting.
 
-Everything deterministic (parsing, §41 computation, reconciliation, the conclusion policy, verification) lives
-outside this module. Here is the *only* place a model may act, and even here it never concludes: for the
-four-part test it fills per-criterion `Assessment`s (PASS/FAIL/INSUFFICIENT) which a deterministic policy then
-resolves. Default is the offline `DeterministicProvider` (used by the demo/tests); `LLMProvider` is selected
-when FIRM_LLM_* is configured, matching the capmarkets/learnerbot scorer-seam pattern.
+Everything deterministic (parsing, computation, reconciliation, conclusion policy, verification) lives
+outside this module. Here a provider does two things, for ANY deliverable:
+  · assess(system, evidence, criteria) → one per-criterion `Assessment` each (the model never concludes;
+    a deterministic policy in the deliverable resolves the assessments into a conclusion);
+  · draft(engagement, deliverable) → render the claim graph as a memo.
+Default is the offline `DeterministicProvider`; `LLMProvider` (OpenAI-compatible, FIRM_LLM_*) does real work.
 """
 from __future__ import annotations
 
 import json
 import os
 
-from . import claims as _claims
-from .contracts import (Assessment, AuthorityRef, ClaimType, Conclusion, Deliverable, Engagement,
-                        EvidenceRef, Result, ResearchQualification)
-from .section41 import conclude
-
-_FOUR_PARTS = ("permitted_purpose", "technological_in_nature", "elimination_of_uncertainty",
-               "process_of_experimentation")
+from .contracts import Assessment, AuthorityRef, ClaimType, Criterion, Deliverable, Engagement, Result
 
 
 # ── deterministic default (offline) ─────────────────────────────────────────────
 class DeterministicProvider:
     name = "deterministic"
-    qualified_project = "Atlas"
 
-    def assess(self, project: str, facts: dict) -> ResearchQualification:
-        a41d = (AuthorityRef("IRC §41(d)(1)", "qualified research"),)
-        reg_unc = (AuthorityRef("Treas. Reg. §1.41-4(a)(3)", "uncertainty"),)
-        reg_exp = (AuthorityRef("Treas. Reg. §1.41-4(a)(5)", "process of experimentation"),)
-        ev_proj = (EvidenceRef("project_desc", f"Project {project}"),)
-        ev_eng = (EvidenceRef("engineering", f"Project {project} experimentation log"),)
+    def assess(self, system: str, evidence: str, criteria: list[Criterion]) -> dict[str, Assessment]:
+        out = {}
+        for c in criteria:
+            result = Result.PASS if c.hint else Result.INSUFFICIENT   # reflects the evidence-support signal
+            out[c.name] = Assessment(c.name, result, evidence=c.evidence, authority=c.authority,
+                                     confidence=0.85 if result == Result.PASS else 0.5,
+                                     rationale=("evidence supports the criterion" if result == Result.PASS
+                                                else "insufficient contemporaneous evidence"))
+        return out
 
-        def a(crit, result, auth, ev):
-            return Assessment(crit, result, evidence=ev, authority=auth,
-                              confidence=0.85 if result == Result.PASS else 0.5,
-                              rationale=("evidence supports the criterion" if result == Result.PASS
-                                         else "insufficient contemporaneous evidence"))
-        if project == self.qualified_project:
-            parts = [a("permitted_purpose", Result.PASS, a41d, ev_proj),
-                     a("technological_in_nature", Result.PASS, a41d, ev_proj),
-                     a("elimination_of_uncertainty", Result.PASS, reg_unc, ev_eng),
-                     a("process_of_experimentation", Result.PASS, reg_exp, ev_eng)]
-        else:
-            parts = [a("permitted_purpose", Result.PASS, a41d, ev_proj),
-                     a("technological_in_nature", Result.PASS, a41d, ev_proj),
-                     a("elimination_of_uncertainty", Result.INSUFFICIENT, reg_unc, ()),
-                     a("process_of_experimentation", Result.INSUFFICIENT, reg_exp, ())]
-        return ResearchQualification(project, *parts, conclusion=conclude(*parts))
-
-    def draft(self, engagement: Engagement, d: Deliverable, cr, qualified: list[str]) -> str:
-        return render_claim_graph(engagement, d, cr, qualified)
+    def draft(self, engagement: Engagement, d: Deliverable) -> str:
+        return render_claim_graph(engagement, d)
 
 
 # ── real model (OpenAI-compatible; env-gated) ────────────────────────────────────
-_ASSESS_SYS = (
-    "You are a tax professional applying the IRC §41(d)(1) four-part test to ONE project. Assess EACH of the "
-    "four criteria independently as PASS, FAIL, or INSUFFICIENT based ONLY on the provided evidence and cited "
-    "authority. Do NOT decide whether the project qualifies overall — that is decided by policy from your four "
-    "assessments. Return STRICT JSON: {\"permitted_purpose\":{\"result\":..,\"confidence\":0..1,"
-    "\"rationale\":..,\"authority\":[..]}, \"technological_in_nature\":{..}, "
-    "\"elimination_of_uncertainty\":{..}, \"process_of_experimentation\":{..}}. Prefer INSUFFICIENT over "
-    "guessing.")
-
-
 class LLMProvider:
     name = "llm"
 
     def __init__(self, chat_fn):
         self.chat = chat_fn                       # chat(system:str, user:str) -> str
 
-    def assess(self, project: str, facts: dict) -> ResearchQualification:
-        evidence = json.dumps({"project": project, "projects": facts.get("projects", {})}, default=str)[:6000]
+    def assess(self, system: str, evidence: str, criteria: list[Criterion]) -> dict[str, Assessment]:
+        asks = "; ".join(f"{c.name}: {c.prompt or c.name}" for c in criteria)
+        user = (f"Evidence:\n{evidence[:6000]}\n\nAssess EACH criterion independently as PASS, FAIL, or "
+                f"INSUFFICIENT (prefer INSUFFICIENT over guessing). Criteria — {asks}\n"
+                'Return STRICT JSON: {"<name>":{"result":..,"confidence":0..1,"rationale":..}}')
         try:
-            raw = self.chat(_ASSESS_SYS, f"Project: {project}\nEvidence:\n{evidence}")
-            data = json.loads(_json_slice(raw))
+            data = json.loads(_json_slice(self.chat(system, user)))
         except Exception:
             data = {}
-        parts = [_parse_assessment(crit, data.get(crit)) for crit in _FOUR_PARTS]
-        return ResearchQualification(project, *parts, conclusion=conclude(*parts))
+        out = {}
+        for c in criteria:
+            a = _parse_assessment(c.name, data.get(c.name))
+            out[c.name] = Assessment(c.name, a.result, evidence=c.evidence,      # attach deliverable provenance
+                                     authority=c.authority or a.authority,
+                                     confidence=a.confidence, rationale=a.rationale)
+        return out
 
-    def draft(self, engagement: Engagement, d: Deliverable, cr, qualified: list[str]) -> str:
+    def draft(self, engagement: Engagement, d: Deliverable) -> str:
         graph = [{"id": c.claim_id, "type": c.claim_type.value, "assertion": c.assertion} for c in d.claims]
-        sys = ("Render a professional R&D tax credit study memo FROM the given claim graph. Every material "
+        comps = [{"name": c.name, "outputs": c.outputs} for c in d.computations]
+        sys = ("Render a professional accounting deliverable memo FROM the given claim graph. Every material "
                "sentence must correspond to a claim; cite the claim id in brackets; never introduce a number "
-               "or authority not present in the claims. Plain markdown.")
-        user = json.dumps({"client": engagement.client, "credit": cr.credit, "elected": cr.elected,
-                           "qre": cr.qre, "claims": graph}, default=str)
+               "or authority not present in the claims/computations. Plain markdown.")
+        user = json.dumps({"client": engagement.client, "type": engagement.deliverable_type,
+                           "claims": graph, "computations": comps}, default=str)
         try:
             return self.chat(sys, user)
         except Exception:
-            return render_claim_graph(engagement, d, cr, qualified)   # fail safe → deterministic render
+            return render_claim_graph(engagement, d)          # fail-safe → deterministic render
 
 
 def _parse_assessment(criterion: str, obj) -> Assessment:
@@ -130,30 +108,34 @@ def select_provider(chat_fn=None):
     """LLMProvider when a chat_fn is given or FIRM_LLM_* is configured; else the deterministic default."""
     if chat_fn is not None:
         return LLMProvider(chat_fn)
-    base = os.environ.get("FIRM_LLM_BASE_URL")
-    key = os.environ.get("FIRM_LLM_API_KEY")
-    model = os.environ.get("FIRM_LLM_MODEL", "kimi-k2.6")
+    base, key = os.environ.get("FIRM_LLM_BASE_URL"), os.environ.get("FIRM_LLM_API_KEY")
     if base and key:
-        return LLMProvider(_http_chat(base, key, model))
+        return LLMProvider(_http_chat(base, key, os.environ.get("FIRM_LLM_MODEL", "kimi-k2.6")))
     return DeterministicProvider()
 
 
-# ── claim-graph render (deterministic; also the LLM fail-safe) ────────────────────
-def render_claim_graph(eng: Engagement, d: Deliverable, cr, qualified: list[str]) -> str:
-    L = [f"# R&D Tax Credit Study (IRC §41) — {eng.client}", "",
-         f"Engagement {eng.engagement_id} · fixed fee ${eng.price_usd:,.0f} · SLA {eng.sla_hours}h", "",
-         "## Qualified activities"]
+# ── claim-graph render (deterministic; also the LLM fail-safe) — deliverable-agnostic ──
+def render_claim_graph(eng: Engagement, d: Deliverable) -> str:
+    title = eng.deliverable_type.replace("_", " ").title()
+    L = [f"# {title} — {eng.client}", "",
+         f"Engagement {eng.engagement_id} · fixed fee ${eng.price_usd:,.0f} · SLA {eng.sla_hours}h", ""]
+    sections: dict[str, list] = {}
     for c in d.claims:
-        if c.section in ("facts", "qualification"):
-            L.append(f"- {c.assertion}  _[{c.claim_id} · {c.claim_type.value}]_")
+        sections.setdefault(c.section, []).append(c)
+    for section, cs in sections.items():
+        L.append(f"## {section.replace('_', ' ').title()}")
+        for c in cs:
+            tag = c.claim_id + (f" · {', '.join(a.authority for a in c.authority_refs)}"
+                                if c.authority_refs else f" · {c.claim_type.value}")
+            L.append(f"- {c.assertion}  _[{tag}]_")
+        L.append("")
     if d.escalations:
-        L += ["", "## Held for CPA review (not included in the credit)"] + [f"- {e}" for e in d.escalations]
-    L += ["", "## Authority"]
-    for c in d.claims:
-        if c.claim_type == ClaimType.AUTHORITY_INTERPRETATION:
-            L.append(f"- {c.assertion}  _[{', '.join(a.authority for a in c.authority_refs)}]_")
-    L += ["", "## Computation (deterministic; engines A and B agree)",
-          f"- Qualified research expenses: **${cr.qre:,.0f}**",
-          f"- ASC method: ${cr.asc:,.0f} · Regular method: ${cr.rrc:,.0f}",
-          f"- **Credit claimed ({cr.elected}): ${cr.credit:,.0f}**  _[rd_credit · cross-checked]_", ""]
+        L += ["## Held for CPA review (not included)"] + [f"- {e}" for e in d.escalations] + [""]
+    if d.computations:
+        L.append("## Computation (deterministic; engines A and B agree)")
+        for comp in d.computations:
+            for k, v in comp.outputs.items():
+                val = f"${v:,.0f}" if isinstance(v, (int, float)) else v
+                L.append(f"- {comp.name}.{k}: **{val}**  _[cross-checked: {comp.agreement}]_")
+        L.append("")
     return "\n".join(L)

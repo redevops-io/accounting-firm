@@ -103,6 +103,27 @@ class Assessment:
 
 
 @dataclass(frozen=True)
+class Judgment:
+    """A generic professional judgment for any deliverable: a subject, its per-criterion assessments, and a
+    policy-derived conclusion. (ResearchQualification is the §41-specific shape; this is the general one.)"""
+    subject: str
+    assessments: tuple  # tuple[Assessment, ...]
+    conclusion: "Conclusion"
+
+
+@dataclass(frozen=True)
+class Criterion:
+    """One thing to assess. The deliverable supplies these; the provider fills an `Assessment` per criterion.
+    `hint` is the deterministic support signal (is the evidence there?) the offline provider reflects; the LLM
+    provider reasons from `prompt` + evidence instead. This is what makes assessment deliverable-agnostic."""
+    name: str
+    prompt: str = ""
+    authority: tuple[AuthorityRef, ...] = ()
+    evidence: tuple[EvidenceRef, ...] = ()
+    hint: bool = True
+
+
+@dataclass(frozen=True)
 class ResearchQualification:
     """The IRC §41(d) four-part test as four independent evidence-backed assessments.
     `conclusion` is DERIVED by deterministic policy (see section41.qualify), not by the model."""

@@ -15,7 +15,9 @@ from .contracts import ClaimType, Conclusion, Deliverable
 
 def verify(deliverable: Deliverable) -> dict:
     comps = {c.name: c for c in deliverable.computations}
-    quals = {q.project_id: q for q in deliverable.qualifications}
+    # a judgment is keyed by project_id (ResearchQualification) or subject (generic Judgment)
+    quals = {(getattr(q, "project_id", None) or getattr(q, "subject", None)): q
+             for q in deliverable.qualifications}
     blocking: list[str] = []
 
     for c in deliverable.claims:
