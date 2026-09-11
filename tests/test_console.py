@@ -15,6 +15,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from accounting_firm.console import build_deliverable
 from accounting_firm.console.app import _Handler
+from accounting_firm.console.serialize import ReviewSession
 
 
 def test_deliverable_serializes_signed_with_claims():
@@ -83,18 +84,69 @@ def test_operational_status_is_plain_language_not_raw_scores():
     assert all(not s["state"].replace(".", "").isdigit() for s in st.values())
 
 
-def test_http_endpoints_roundtrip():
+def test_mission_trace_and_explain_present():
+    d = build_deliverable()
+    stages = [t["stage"] for t in d["mission_trace"]]
+    assert stages == ["INGEST", "NORMALIZE", "RECONCILE", "ASSESS", "COMPUTE", "DRAFT", "VERIFY", "CPA REVIEW"]
+    # RECONCILE flags the blocking allocation exception; CPA REVIEW shows the outcome
+    assert next(t for t in d["mission_trace"] if t["stage"] == "RECONCILE")["state"] == "warn"
+    qs = [e["q"] for e in d["explain"]]
+    assert any("Borealis" in q for q in qs) and any("computed" in q for q in qs)
+
+
+def test_review_session_signs_in_place_and_seals_ledger():
+    s = ReviewSession()
+    j = s.json()
+    assert j["status"] == "ready_for_review" and j["signable"] is True
+    assert not j["sign_offs"]
+    n_before = len(j["ledger"])
+    out = s.sign("APPROVE")
+    assert out["status"] == "signed" and out["signable"] is False
+    assert out["sign_offs"] and out["sign_offs"][0]["ledger_ref"]         # ledger sealed
+    assert len(out["ledger"]) > n_before                                  # signoff + learning appended
+    assert all(c["disposition"] == "accepted" for c in out["claims"])
+    # a signed deliverable refuses a second signature
+    assert "error" in s.sign("APPROVE")
+
+
+def test_amendment_is_consequential_and_affects_ai_layer_only():
+    s = ReviewSession()
+    pj = next(c for c in s.json()["claims"] if c["type"] == "PROFESSIONAL_JUDGMENT")
+    out = s.sign("AMEND", [{"claim_id": pj["claim_id"], "stage": "assessment", "reason": "needs records"}])
+    assert out["status"] == "signed"
+    amended = next(c for c in out["claims"] if c["claim_id"] == pj["claim_id"])
+    assert amended["disposition"] == "amended"
+    assert out["amendment_impact"]["amended_claims"] == [pj["claim_id"]]
+    # affected vs unaffected: the rules/policy/guardrails are explicitly NOT touched
+    un = " ".join(out["amendment_impact"]["unaffected"]).lower()
+    assert "calculation rules" in un and "policy" in un and "guardrails" in un
+    assert any(o["kind"] == "cpa_amendment" for o in out["learning_outcomes"])
+
+
+def test_http_endpoints_roundtrip_and_sign():
     httpd = ThreadingHTTPServer(("127.0.0.1", 0), _Handler)
     port = httpd.server_address[1]
     th = threading.Thread(target=httpd.serve_forever, daemon=True)
     th.start()
+
+    def get(p):
+        return json.loads(urllib.request.urlopen(f"http://127.0.0.1:{port}{p}").read())
+
+    def post(p, body):
+        req = urllib.request.Request(f"http://127.0.0.1:{port}{p}", data=json.dumps(body).encode(),
+                                     headers={"Content-Type": "application/json"}, method="POST")
+        return json.loads(urllib.request.urlopen(req).read())
+
     try:
-        base = f"http://127.0.0.1:{port}"
-        assert json.loads(urllib.request.urlopen(f"{base}/healthz").read())["ok"] is True
-        html = urllib.request.urlopen(f"{base}/").read().decode()
+        assert get("/healthz")["ok"] is True
+        html = urllib.request.urlopen(f"http://127.0.0.1:{port}/").read().decode()
         assert "<!doctype html>" in html.lower() and "claim graph" in html.lower()
-        api = json.loads(urllib.request.urlopen(f"{base}/api/deliverable").read())
-        assert api["status"] == "signed" and len(api["claims"]) == 6
+        api = get("/api/deliverable")
+        assert api["status"] == "ready_for_review" and len(api["claims"]) == 6
+        signed = post("/api/sign", {"decision": "APPROVE"})
+        assert signed["status"] == "signed" and signed["sign_offs"][0]["ledger_ref"]
+        # reset returns a fresh, re-signable deliverable
+        assert post("/api/reset", {})["status"] == "ready_for_review"
     finally:
         httpd.shutdown()
 

@@ -133,14 +133,79 @@ def _trust_model(d: Deliverable) -> dict:
     }
 
 
-def build_deliverable(paths: dict | None = None, cpa_review=None, provider=None) -> dict:
-    """Run the §41 study (offline/deterministic by default) and serialise it for the console."""
-    paths = paths or _PATHS
-    eng = _engagement()
-    d, led = rd_credit_study.run(eng, paths, cpa_review or _auto_cpa, provider=provider)
-    _, docs = rd_credit_study.extract(paths, provider)          # source-document metadata for the EVIDENCE tab
-    resolver = select_resolver()
+# ── Mission trace (how the engagement was produced) ───────────────────────────────
+def _mission_trace(d: Deliverable, led) -> list[dict]:
+    types = {e.type for e in led.events()}
+    blocking_recons = sum(1 for r in d.reconciliations if r.blocking)
+    held = sum(1 for q in d.qualifications if q.conclusion == Conclusion.REVIEW_REQUIRED)
+    review = ({"signed": ("done", "✓ signed"), "rejected": ("block", "✕ rejected"),
+               "ready_for_review": ("await", "● awaiting signature")}
+              .get(d.status, ("await", d.status.replace("_", " "))))
+    return [
+        {"stage": "INGEST", "state": "ok" if "documents.ingested" in types else "pending",
+         "detail": "source documents ingested with provenance"},
+        {"stage": "NORMALIZE", "state": "ok" if "facts.extracted" in types else "pending",
+         "detail": "facts extracted and typed"},
+        {"stage": "RECONCILE", "state": "warn" if blocking_recons else "ok",
+         "detail": f"{blocking_recons} exception(s) held" if blocking_recons else "sources reconcile"},
+        {"stage": "ASSESS", "state": "ok",
+         "detail": f"{held} project(s) held for review" if held else "all projects assessed"},
+        {"stage": "COMPUTE", "state": "ok" if "computed" in types else "pending",
+         "detail": "§41 Engine A = Engine B"},
+        {"stage": "DRAFT", "state": "ok" if "drafted" in types else "pending", "detail": "claim graph rendered"},
+        {"stage": "VERIFY", "state": "ok" if "verified" in types else "pending",
+         "detail": "every claim's provenance verified"},
+        {"stage": "CPA REVIEW", "state": review[0], "detail": review[1]},
+    ]
 
+
+# ── EXPLAIN (why the system reached this state, in plain terms) ────────────────────
+def _explain(d: Deliverable) -> list[dict]:
+    out = []
+    for q in d.qualifications:
+        if q.conclusion == Conclusion.REVIEW_REQUIRED:
+            ins = [getattr(q, n).criterion for n in ("permitted_purpose", "technological_in_nature",
+                   "elimination_of_uncertainty", "process_of_experimentation")
+                   if getattr(q, n).result == Result.INSUFFICIENT]
+            out.append({"q": f"Why was {q.project_id} excluded from the credit?",
+                        "facts": [f"evidence completeness: insufficient ({', '.join(ins) or 'criteria'})",
+                                  "policy: all four criteria of §41(d)(1) required",
+                                  "result: REVIEW_REQUIRED", "calculation input: excluded",
+                                  "human gate: CPA determination required"]})
+    for r in d.reconciliations:
+        if r.blocking:
+            out.append({"q": f"Why is the {r.source_a.split('·')[-1].strip()} allocation held?",
+                        "facts": [f"two sources disagree: {r.source_a} {r.value_a} vs {r.source_b} {r.value_b}",
+                                  f"difference {abs(r.difference)}pp exceeds tolerance {r.tolerance}",
+                                  "policy: conflicting evidence is not averaged", "status: BLOCKING",
+                                  "calculation input: this allocation excluded", "human gate: reconcile/escalate"]})
+    credit = next((c for c in d.computations if c.name == "rd_credit"), None)
+    if credit:
+        out.append({"q": "How is the credit computed, and why is it trustworthy?",
+                    "facts": ["computed by code (IRC §41), not the model",
+                              f"elected method: {credit.outputs.get('elected')}",
+                              "Engine A (schedule) and Engine B (fold) agree on every figure",
+                              f"cross-check: {'PASSED' if credit.agreement else 'FAILED'}"]})
+    return out
+
+
+# ── consequential amendment (what a CPA change affects vs. what it never touches) ──
+def _amendment_impact(d: Deliverable) -> dict:
+    amended = [c.claim_id for c in d.claims if c.reviewer_disposition == "amended"]
+    return {
+        "amended_claims": amended,
+        "affected": ["This deliverable — the amended claim's disposition and rendering",
+                     "The evidence ledger — an immutable amendment entry (the artifact is never edited in place)",
+                     "Future retrieval / extraction / drafting — a LearningOutcome tunes the AI layer"],
+        "unaffected": ["§41 calculation rules — Engine A + Engine B, versioned and controlled",
+                       "The qualification policy — the four-part test and its conclusion logic",
+                       "Regulatory guardrails — the CPA remains the signing authority"],
+    }
+
+
+def serialize_state(eng: Engagement, d: Deliverable, led, docs, provider=None) -> dict:
+    """Serialise a deliverable in whatever state it is in (ready_for_review, signed, rejected, escalated)."""
+    resolver = select_resolver()
     comps = {c.name: c for c in d.computations}
     quals = {q.project_id: q for q in d.qualifications}
 
@@ -162,6 +227,12 @@ def build_deliverable(paths: dict | None = None, cpa_review=None, provider=None)
         "escalations": list(d.escalations),
         "trust_model": _trust_model(d),
         "operational_status": _operational_status(d, docs),
+        "mission_trace": _mission_trace(d, led),
+        "explain": _explain(d),
+        "amendment_impact": _amendment_impact(d),
+        "learning_outcomes": [{"kind": o.kind, "decision": o.decision, "reward": o.reward,
+                               "context": o.context} for o in getattr(d, "learning_outcomes", [])],
+        "signable": d.status == "ready_for_review",
         "documents": [{"doc_id": dd.doc_id, "kind": dd.kind, "uri": os.path.basename(dd.uri),
                        "confidence": {"extraction": dd.confidence.extraction,
                                       "evidence_completeness": dd.confidence.evidence_completeness},
@@ -175,3 +246,58 @@ def build_deliverable(paths: dict | None = None, cpa_review=None, provider=None)
                     "ledger": "agentic-os" if os.environ.get("FIRM_LEDGER") == "agentic-os" else "in-repo",
                     "verification": "PASS" if all(c.verified for c in d.claims) else "FAIL"},
     }
+
+
+def build_deliverable(paths: dict | None = None, cpa_review=None, provider=None) -> dict:
+    """Run the §41 study to a *signed* state and serialise it (back-compat / one-shot view + tests)."""
+    paths = paths or _PATHS
+    eng = _engagement()
+    d, led = rd_credit_study.run(eng, paths, cpa_review or _auto_cpa, provider=provider)
+    _, docs = rd_credit_study.extract(paths, provider)          # source-document metadata for the EVIDENCE tab
+    return serialize_state(eng, d, led, docs, provider)
+
+
+class ReviewSession:
+    """One live review: run the study to ready_for_review, hold the *same* deliverable + ledger, then sign
+    it in place. Holding the object keeps claim ids stable across the load → sign round-trip and lets the
+    sign gate seal the very ledger the reviewer inspected. Single-tenant (this is a demo surface)."""
+
+    def __init__(self, paths: dict | None = None, provider=None):
+        self.paths = paths or _PATHS
+        self.provider = provider
+        self.engagement = _engagement()
+        self._prepare()
+
+    def _prepare(self) -> None:
+        self.deliverable, self.ledger = rd_credit_study.run(self.engagement, self.paths, provider=self.provider)
+        _, self.docs = rd_credit_study.extract(self.paths, self.provider)
+
+    def reset(self) -> None:
+        self._prepare()
+
+    def sign(self, decision: str, amendments: list | None = None, cpa: str = "A. Mats, CPA") -> dict:
+        """Apply a CPA decision to the held deliverable. Idempotent-guarded: only a ready deliverable signs."""
+        if self.deliverable.status != "ready_for_review":
+            return {"error": f"deliverable is '{self.deliverable.status}', not open for signature"}
+        try:
+            dec = Decision(str(decision).upper())
+        except ValueError:
+            return {"error": f"unknown decision '{decision}'"}
+        ams = [{"claim_id": a["claim_id"], "stage": a.get("stage", "draft"),
+                "ai_choice": a.get("ai_choice", "drafting"), "reason": a.get("reason", "")}
+               for a in (amendments or []) if a.get("claim_id")]
+
+        def review(_d: Deliverable) -> SignOff:
+            return SignOff(cpa, time.time(), "full", dec, amendments=ams)
+
+        from .. import mission
+        mission.sign(self.engagement, self.deliverable, self.ledger, review, self.provider or _resolve_provider())
+        return self.json()
+
+    def json(self) -> dict:
+        return serialize_state(self.engagement, self.deliverable, self.ledger, self.docs, self.provider)
+
+
+def _resolve_provider():
+    from ..providers import select_provider
+    return select_provider()

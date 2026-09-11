@@ -52,12 +52,20 @@ conclusion comes from the deliverable's `run()`. The one interaction it builds i
 Click any material statement for its provenance: the source document + locator (FACT), the re-retrieved
 authority passage (AUTHORITY_INTERPRETATION), the **cross-checked computation with Engine A = Engine B**
 (NUMBER), or the **claim graph** drawn from the four-part test (PROFESSIONAL_JUDGMENT). The spine is the
-**three-case trust model**, shown explicitly: *sufficient* → compute (the signed credit), *missing* →
-abstain (Project Borealis held), *conflicting* → reconcile/escalate (a payroll-vs-worksheet allocation
-mismatch, BLOCKING). Status is shown in operational language (Evidence ✓ Complete · Calculation ✓
-Independently cross-checked · Professional judgment ⚠ CPA review), with raw scores tucked under Runtime
-details — the distinction conveyed is *deterministic computation vs. grounded judgment*, not offline vs.
-live mode. `FIRM_CONSOLE_PORT` / `FIRM_CONSOLE_HOST` override the bind; the runtime seams (`FIRM_LLM_*`,
+**three-case trust model**, shown explicitly: *sufficient* → compute (the credit), *missing* → abstain
+(Project Borealis held), *conflicting* → reconcile/escalate (a payroll-vs-worksheet allocation mismatch,
+BLOCKING).
+
+The deliverable opens **ready for review**, not pre-signed. The CPA is the signing authority: **Approve**,
+**Amend a claim**, or **Reject** — the decision is applied to the *same* deliverable and **seals the
+hash-chained ledger**. An amendment is **consequential and shown as such** — the *affected* (this
+deliverable, the ledger entry, the AI layer's retrieval/extraction/drafting via a `LearningOutcome`) vs. the
+*unaffected* (the §41 calculation rules, the qualification policy, the regulatory guardrails): a correction
+tunes the AI, never the rules. Four tabs — **Deliverable · Evidence · Explain · Ledger** — plus a **Mission
+trace** expandable (INGEST → … → CPA REVIEW). Status is operational language (Calculation ✓ Independently
+cross-checked · Professional judgment ⚠ CPA review), with raw scores under Runtime details — the distinction
+conveyed is *deterministic computation vs. grounded judgment*, not offline vs. live mode.
+`FIRM_CONSOLE_PORT` / `FIRM_CONSOLE_HOST` override the bind; the runtime seams (`FIRM_LLM_*`,
 `FIRM_CORPUS=rag`, `FIRM_LEDGER=agentic-os`) apply unchanged. Plan: `~/Documents/ACCOUNTING_FIRM_DEMO_PLAN.md`.
 
 ## What is real vs. a seam

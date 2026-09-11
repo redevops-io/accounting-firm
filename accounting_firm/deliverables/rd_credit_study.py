@@ -181,7 +181,9 @@ def _assess_project(provider, project: str, facts: dict) -> ResearchQualificatio
 
 
 # ── the governed mission ────────────────────────────────────────────────────────
-def run(engagement: Engagement, paths: dict[str, str], cpa_review, provider=None) -> tuple[Deliverable, Ledger]:
+def run(engagement: Engagement, paths: dict[str, str], cpa_review=None, provider=None) -> tuple[Deliverable, Ledger]:
+    """Run the governed §41 mission. With `cpa_review` it runs through the sign gate (finalize); without it,
+    it stops at ready_for_review (prepare) so a review surface can hold the deliverable and sign it later."""
     provider = provider or select_provider()
     led = select_ledger(engagement.engagement_id)
     led.append("engagement.start", {"client": engagement.client, "type": engagement.deliverable_type,
@@ -280,5 +282,8 @@ def run(engagement: Engagement, paths: dict[str, str], cpa_review, provider=None
     ]
     led.append("claims.assembled", {"n": len(d.claims)})
 
-    # shared governed tail: draft → verify → CPA review/sign → learn
+    # shared governed tail: draft → verify → (CPA review/sign → learn). Without a reviewer, stop at
+    # ready_for_review so a review surface can present it and sign the same deliverable later.
+    if cpa_review is None:
+        return mission.prepare(engagement, d, led, provider)
     return mission.finalize(engagement, d, led, cpa_review, provider)
