@@ -124,6 +124,17 @@ def extract(paths: dict[str, str], provider=None) -> tuple[dict, list[SourceDocu
                                    paths[key], {"chars": len(text)},
                                    Confidence(extraction=0.9, evidence_completeness=0.8), "parser/v0"))
 
+    if paths.get("worksheet"):                               # optional project-allocation worksheet
+        ws: dict = {}
+        for r in _rows(paths["worksheet"])[1:]:
+            if len(r) < 3 or not r[0]:
+                continue
+            ws.setdefault(r[0], {})[r[1]] = float(re.sub(r"[^0-9.]", "", r[2] or "0") or 0) / 100
+        facts["worksheet"] = ws
+        docs.append(SourceDocument("worksheet", "allocation_worksheet", paths["worksheet"],
+                                   {"employees": len(ws)}, Confidence(extraction=0.95, evidence_completeness=0.9),
+                                   "parser/v1"))
+
     py = {r[0].strip().lower(): _money(r[1]) for r in _rows(paths["prior_year"]) if len(r) >= 2 and r[1]}
     facts["prior_qre"] = tuple(v for k, v in sorted(py.items()) if k.startswith("prior_qre"))
     facts["fixed_base_pct"] = py.get("fixed_base_pct", 0.0) / (100 if py.get("fixed_base_pct", 0) > 1 else 1)
@@ -211,7 +222,24 @@ def run(engagement: Engagement, paths: dict[str, str], cpa_review, provider=None
     if not qualified:
         d.status = "escalated"; return d, led
 
-    qwages = round(sum(e["wages"] * e["alloc"].get(p, 0) for e in facts["employees"] for p in qualified), 2)
+    # conflicting evidence: reconcile each employee's payroll allocation against the worksheet; a mismatch is
+    # BLOCKING and that allocation is HELD from the QRE — the system reconciles/escalates, never averages.
+    held: set = set()
+    for e in facts["employees"]:
+        for p in qualified:
+            pa, wa = e["alloc"].get(p), (facts.get("worksheet") or {}).get(e["name"], {}).get(p)
+            if pa is not None and wa is not None:
+                rec = reconcile.reconcile(f"payroll·{e['name']}", round(pa * 100, 1),
+                                          f"worksheet·{e['name']}", round(wa * 100, 1),
+                                          f"{e['name']} — {p} allocation: payroll == worksheet", tolerance=0.5)
+                if rec.blocking:
+                    d.reconciliations.append(rec)
+                    held.add((e["name"], p))
+                    d.escalations.append(f"{e['name']} · {p}: allocation conflict — payroll {pa:.0%} vs "
+                                         f"worksheet {wa:.0%} ({abs(pa - wa) * 100:.0f}pp) — BLOCKING; held from QRE")
+                    led.append("escalated", {"reason": "allocation_conflict", "employee": e["name"], "project": p})
+    qwages = round(sum(e["wages"] * e["alloc"].get(p, 0) for e in facts["employees"] for p in qualified
+                      if (e["name"], p) not in held), 2)
     inp = QREInputs(qualified_wages=qwages, qualified_supplies=facts["gl"].get("supplies", 0),
                     contract_research=facts["gl"].get("contract", 0), cloud_computing=facts["gl"].get("cloud", 0),
                     prior_qre=facts["prior_qre"], fixed_base_pct=facts["fixed_base_pct"],
@@ -222,7 +250,8 @@ def run(engagement: Engagement, paths: dict[str, str], cpa_review, provider=None
         d.status = "escalated"; d.escalations.append("§41 engines A/B disagree"); return d, led
     comp = Computation(name="rd_credit", engine="engine_a", inputs=asdict(inp),
                        outputs={"qre": cr.qre, "asc": cr.asc, "rrc": cr.rrc, "credit": cr.credit,
-                                "elected": cr.elected},
+                                "elected": cr.elected, "components": cr.components,
+                                "engine_a": cr.engine_a, "engine_b": cr.engine_b},
                        cross_validator="engine_b", agreement=cr.agreement)
     d.computations.append(comp)
     led.append("computed", {"credit": cr.credit, "elected": cr.elected, "engines_agree": True})

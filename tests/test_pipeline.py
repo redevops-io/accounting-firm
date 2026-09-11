@@ -77,6 +77,17 @@ def test_cpa_amendment_emits_learning_outcome():
     assert all(o.context.get("stage") for o in outs if o.kind == "cpa_amendment")
 
 
+def test_three_case_trust_model_with_allocation_conflict():
+    # sufficient → compute · missing → abstain (Borealis) · conflicting → reconcile/escalate (Rao)
+    paths = dict(PATHS, worksheet=f"{DATA}/allocation_worksheet.csv")
+    d, _ = rd_credit_study.run(_eng(), paths, _approve)
+    assert d.status == "signed"
+    assert next(c for c in d.computations if c.name == "rd_credit").outputs["credit"] == 30800.0  # Rao's Atlas held
+    assert any("Borealis" in e for e in d.escalations)                       # missing evidence
+    assert any("Rao" in e and "conflict" in e for e in d.escalations)        # conflicting evidence
+    assert any(r.status == "MISMATCH" for r in d.reconciliations)            # a BLOCKING reconciliation
+
+
 def test_scanned_payroll_multiformat_ingestion():
     # Phase 3: an unstructured/"scanned" payroll (free text) yields the same result as the clean CSV
     paths = dict(PATHS, payroll=f"{DATA}/payroll_scanned.txt")

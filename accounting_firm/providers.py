@@ -174,6 +174,8 @@ def render_claim_graph(eng: Engagement, d: Deliverable) -> str:
         L.append("## Computation (deterministic; engines A and B agree)")
         for comp in d.computations:
             for k, v in comp.outputs.items():
+                if isinstance(v, (dict, list)):
+                    continue                       # engine A/B detail + components are for the console, not the memo prose
                 val = f"${v:,.0f}" if isinstance(v, (int, float)) else v
                 L.append(f"- {comp.name}.{k}: **{val}**  _[cross-checked: {comp.agreement}]_")
         L.append("")

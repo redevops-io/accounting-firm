@@ -41,6 +41,25 @@ runs through the *same* shared loop (`mission.finalize`) and the *same* reconcil
 provider machinery as the §41 study. A new deliverable is a new module: its own extraction, deterministic
 calc (with an A/B cross-check), and criteria — **no change to the core loop**.
 
+## The CPA review console (demo surface)
+
+`python3 -m accounting_firm.console` → **http://127.0.0.1:8088** — a thin, read-only view over a governed
+§41 study (stdlib only, no web framework). It is a *view*, not a second source of truth: every number and
+conclusion comes from the deliverable's `run()`. The one interaction it builds is *challenge the work* —
+
+> **"I don't believe this sentence." → click → "here is exactly why it exists."**
+
+Click any material statement for its provenance: the source document + locator (FACT), the re-retrieved
+authority passage (AUTHORITY_INTERPRETATION), the **cross-checked computation with Engine A = Engine B**
+(NUMBER), or the **claim graph** drawn from the four-part test (PROFESSIONAL_JUDGMENT). The spine is the
+**three-case trust model**, shown explicitly: *sufficient* → compute (the signed credit), *missing* →
+abstain (Project Borealis held), *conflicting* → reconcile/escalate (a payroll-vs-worksheet allocation
+mismatch, BLOCKING). Status is shown in operational language (Evidence ✓ Complete · Calculation ✓
+Independently cross-checked · Professional judgment ⚠ CPA review), with raw scores tucked under Runtime
+details — the distinction conveyed is *deterministic computation vs. grounded judgment*, not offline vs.
+live mode. `FIRM_CONSOLE_PORT` / `FIRM_CONSOLE_HOST` override the bind; the runtime seams (`FIRM_LLM_*`,
+`FIRM_CORPUS=rag`, `FIRM_LEDGER=agentic-os`) apply unchanged. Plan: `~/Documents/ACCOUNTING_FIRM_DEMO_PLAN.md`.
+
 ## What is real vs. a seam
 
 - **Real & deterministic:** the §41 engine + independent cross-check (`section41/`), the ASC 606 recognition
@@ -61,10 +80,12 @@ calc (with an A/B cross-check), and criteria — **no change to the core loop**.
 ```
 python3 demo.py                 # flagship: §41 R&D credit study
 python3 demo_memo.py            # second deliverable: ASC 606 memo (same runtime)
+python3 -m accounting_firm.console  # CPA review console → http://127.0.0.1:8088
 python3 tests/test_section41.py # deterministic §41 core (engines agree)
 python3 tests/test_pipeline.py  # §41 end-to-end gate sequence
 python3 tests/test_providers.py # the model seam (stubbed, no network)
 python3 tests/test_memo.py      # the second deliverable
+python3 tests/test_console.py   # the review console (serialization + HTTP)
 ```
 
 ## Go-live (real backends)

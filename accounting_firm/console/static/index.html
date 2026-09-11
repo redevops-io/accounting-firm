@@ -1,0 +1,569 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CPA Review Console — §41 Study</title>
+<style>
+  :root{
+    --bg:#0f1116; --surface:#171a22; --surface-2:#1e222d; --surface-3:#252a37;
+    --border:#2b3140; --border-2:#3a4152;
+    --text:#e7e9f0; --muted:#9aa2b3; --faint:#6b7385;
+    --accent:#7aa2ff;
+    --pass:#4ec9a5; --warn:#e3a95a; --block:#e46a6a;
+    --number:#b48ef2; --fact:#6db6ff; --judgment:#4ec9a5; --authority:#e3c05a;
+    --mono:"SF Mono",ui-monospace,"JetBrains Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --shadow:0 10px 40px rgba(0,0,0,.45);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:15px;line-height:1.55;
+       -webkit-font-smoothing:antialiased}
+  a{color:var(--accent);text-decoration:none}
+  code,.mono{font-family:var(--mono)}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 22px 80px}
+
+  /* header */
+  header{border-bottom:1px solid var(--border);background:linear-gradient(180deg,#141824,#0f1116);
+         position:sticky;top:0;z-index:20}
+  .head{max-width:1120px;margin:0 auto;padding:16px 22px}
+  .brand{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+  .brand h1{font-size:17px;margin:0;font-weight:640;letter-spacing:-.01em}
+  .brand .eng{color:var(--muted);font-size:13px}
+  .tag{font-size:11px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;color:var(--faint);
+       border:1px solid var(--border-2);border-radius:5px;padding:2px 7px}
+  .thesis{color:var(--muted);font-size:13px;margin-top:8px;max-width:760px}
+  .thesis b{color:var(--text);font-weight:600}
+  .status-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:4px 10px;border-radius:20px;
+        border:1px solid var(--border-2);background:var(--surface-2);color:var(--muted)}
+  .pill .dot{width:7px;height:7px;border-radius:50%}
+  .pill.ok .dot{background:var(--pass)} .pill.ok{color:#cfeee3}
+  .pill.warn .dot{background:var(--warn)} .pill.warn{color:#f0dcbe}
+  .pill b{color:var(--text);font-weight:600}
+
+  /* tabs */
+  nav.tabs{display:flex;gap:2px;margin:0 auto;max-width:1120px;padding:0 22px}
+  nav.tabs button{background:none;border:none;color:var(--muted);font:inherit;font-size:13.5px;
+       padding:11px 14px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
+  nav.tabs button:hover{color:var(--text)}
+  nav.tabs button.active{color:var(--text);border-bottom-color:var(--accent)}
+
+  h2.sec{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint);
+         margin:30px 0 12px;font-weight:650}
+  .lead{color:var(--muted);font-size:13.5px;margin:-4px 0 16px}
+
+  /* three-case trust model */
+  .trust{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  @media(max-width:820px){.trust{grid-template-columns:1fr}}
+  .case{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;
+        display:flex;flex-direction:column;gap:10px;position:relative;overflow:hidden}
+  .case:before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px}
+  .case.suff:before{background:var(--pass)} .case.miss:before{background:var(--warn)}
+  .case.conf:before{background:var(--block)}
+  .case .cap{font-size:11px;text-transform:uppercase;letter-spacing:.05em;font-weight:650}
+  .case.suff .cap{color:var(--pass)} .case.miss .cap{color:var(--warn)} .case.conf .cap{color:var(--block)}
+  .case .beh{font-size:13.5px;color:var(--text);font-weight:600}
+  .case .big{font-family:var(--mono);font-size:26px;font-weight:600;letter-spacing:-.01em}
+  .case small{color:var(--faint);font-size:12px}
+  .case .item{font-size:12.5px;color:var(--muted);border-top:1px solid var(--border);padding-top:8px}
+  .case .item b{color:var(--text);font-weight:600}
+
+  /* claims list */
+  .claims{display:flex;flex-direction:column;gap:2px}
+  .cgroup{margin-bottom:14px}
+  .cgroup h3{font-size:12px;color:var(--faint);text-transform:uppercase;letter-spacing:.05em;
+             margin:14px 0 6px;font-weight:600}
+  .claim{display:flex;align-items:flex-start;gap:11px;padding:11px 12px;border:1px solid var(--border);
+         border-radius:9px;background:var(--surface);cursor:pointer;transition:border-color .12s,background .12s}
+  .claim:hover{border-color:var(--border-2);background:var(--surface-2)}
+  .claim .txt{flex:1}
+  .claim .assertion{font-size:14px}
+  .badge{font-size:10px;font-weight:700;letter-spacing:.04em;padding:3px 7px;border-radius:5px;
+         white-space:nowrap;margin-top:1px}
+  .b-NUMBER{color:var(--number);background:rgba(180,142,242,.13);border:1px solid rgba(180,142,242,.3)}
+  .b-FACT{color:var(--fact);background:rgba(109,182,255,.12);border:1px solid rgba(109,182,255,.3)}
+  .b-PROFESSIONAL_JUDGMENT{color:var(--judgment);background:rgba(78,201,165,.12);border:1px solid rgba(78,201,165,.3)}
+  .b-AUTHORITY_INTERPRETATION{color:var(--authority);background:rgba(227,192,90,.12);border:1px solid rgba(227,192,90,.3)}
+  .chk{font-size:11px;color:var(--pass);white-space:nowrap;margin-top:3px}
+  .claim .hint{font-size:11px;color:var(--faint);margin-top:3px}
+
+  /* runtime details (hidden/collapsed) */
+  details.runtime{margin-top:26px;border:1px solid var(--border);border-radius:9px;background:var(--surface)}
+  details.runtime summary{cursor:pointer;padding:11px 14px;font-size:12.5px;color:var(--muted);list-style:none}
+  details.runtime summary::-webkit-details-marker{display:none}
+  details.runtime[open] summary{border-bottom:1px solid var(--border);color:var(--text)}
+  .rt{padding:12px 14px;display:grid;grid-template-columns:auto 1fr;gap:6px 16px;font-size:12.5px}
+  .rt dt{color:var(--faint)} .rt dd{margin:0;font-family:var(--mono)}
+
+  /* evidence tab */
+  table.grid{width:100%;border-collapse:collapse;font-size:13px}
+  table.grid th{text-align:left;color:var(--faint);font-weight:600;font-size:11px;text-transform:uppercase;
+       letter-spacing:.04em;padding:8px 10px;border-bottom:1px solid var(--border)}
+  table.grid td{padding:9px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+  table.grid tr:hover td{background:var(--surface-2)}
+  .num{font-family:var(--mono);text-align:right}
+  .st-OK{color:var(--pass);font-weight:600}.st-MISMATCH{color:var(--block);font-weight:600}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:16px;margin-bottom:14px}
+
+  /* drawer */
+  .scrim{position:fixed;inset:0;background:rgba(6,8,12,.55);opacity:0;pointer-events:none;
+         transition:opacity .18s;z-index:40}
+  .scrim.open{opacity:1;pointer-events:auto}
+  .drawer{position:fixed;top:0;right:0;bottom:0;width:min(680px,94vw);background:var(--surface);
+          border-left:1px solid var(--border);box-shadow:var(--shadow);transform:translateX(100%);
+          transition:transform .22s cubic-bezier(.4,0,.2,1);z-index:50;overflow-y:auto}
+  .drawer.open{transform:none}
+  .drawer .dhead{position:sticky;top:0;background:var(--surface);border-bottom:1px solid var(--border);
+       padding:16px 20px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+  .drawer .dbody{padding:18px 20px 60px}
+  .drawer h3{margin:0 0 4px;font-size:15px;font-weight:600}
+  .drawer .x{background:var(--surface-2);border:1px solid var(--border-2);color:var(--muted);
+       border-radius:7px;width:30px;height:30px;cursor:pointer;font-size:16px;flex:none}
+  .drawer .x:hover{color:var(--text)}
+  .prov-h{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--faint);
+          margin:20px 0 9px;font-weight:650}
+
+  /* cross-check table (A=B) */
+  .xc{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:13px}
+  .xc th{color:var(--faint);font-family:var(--sans);font-size:11px;text-transform:uppercase;text-align:right;
+         padding:6px 10px;border-bottom:1px solid var(--border);font-weight:600}
+  .xc th:first-child{text-align:left}
+  .xc td{padding:8px 10px;border-bottom:1px solid var(--border);text-align:right}
+  .xc td:first-child{text-align:left;font-family:var(--sans);color:var(--muted)}
+  .xcbanner{display:flex;align-items:center;gap:9px;background:rgba(78,201,165,.1);
+       border:1px solid rgba(78,201,165,.32);color:#bfeede;border-radius:9px;padding:11px 14px;
+       font-size:13px;margin-bottom:14px;font-weight:600}
+  .xcbanner .ico{font-size:15px}
+
+  /* evidence / authority blocks */
+  .ev{border:1px solid var(--border);border-radius:9px;padding:12px 13px;margin-bottom:9px;background:var(--surface-2)}
+  .ev .loc{font-family:var(--mono);font-size:12px;color:var(--accent)}
+  .ev .doc{font-size:11px;color:var(--faint);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px}
+  .ev .quote{font-size:13px;color:var(--text);border-left:2px solid var(--border-2);padding-left:10px;
+             margin-top:6px;font-style:italic;color:var(--muted)}
+  .resolved{font-size:11px;color:var(--pass);font-weight:600}
+  .passage{font-size:13px;color:var(--muted);margin-top:7px;background:var(--bg);border-radius:7px;
+           padding:10px 12px;border:1px solid var(--border);max-height:220px;overflow:auto}
+
+  /* the drawn claim graph */
+  .graph{position:relative;margin:6px 0 4px}
+  .graph svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+  .glayers{display:grid;grid-template-columns:1.3fr .8fr 1fr;gap:26px;position:relative;z-index:1}
+  @media(max-width:600px){.glayers{grid-template-columns:1fr;gap:14px}}
+  .gcol{display:flex;flex-direction:column;gap:12px;justify-content:center}
+  .gcol .lbl{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--faint);
+             font-weight:650;margin-bottom:2px}
+  .node{background:var(--surface-2);border:1px solid var(--border-2);border-radius:9px;padding:10px 12px}
+  .crit .name{font-size:12.5px;font-weight:600}
+  .crit .rat{font-size:11.5px;color:var(--muted);margin-top:3px}
+  .rbadge{font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;float:right;margin-left:8px}
+  .r-PASS{color:var(--pass);background:rgba(78,201,165,.14)}
+  .r-INSUFFICIENT{color:var(--warn);background:rgba(227,169,90,.14)}
+  .r-FAIL{color:var(--block);background:rgba(228,106,106,.14)}
+  .chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}
+  .chip{font-size:10.5px;padding:2px 6px;border-radius:4px;border:1px solid var(--border-2);color:var(--faint);
+        font-family:var(--mono)}
+  .policy{background:var(--bg);border:1px dashed var(--border-2);text-align:center}
+  .policy .k{font-size:11px;color:var(--faint)}
+  .policy .v{font-size:12.5px;color:var(--text);font-weight:600;margin-top:3px}
+  .concl{text-align:center;border-width:1.5px}
+  .concl.QUALIFIED{border-color:var(--pass);background:rgba(78,201,165,.09)}
+  .concl.REVIEW_REQUIRED{border-color:var(--warn);background:rgba(227,169,90,.09)}
+  .concl .v{font-size:14px;font-weight:700;margin-top:2px}
+  .concl.QUALIFIED .v{color:var(--pass)} .concl.REVIEW_REQUIRED .v{color:var(--warn)}
+
+  .checks{display:flex;flex-direction:column;gap:4px;margin-top:6px}
+  .checkrow{font-size:12px;color:var(--muted);display:flex;gap:8px}
+  .checkrow .m{width:14px} .checkrow.ok .m{color:var(--pass)} .checkrow.no .m{color:var(--block)}
+  .loadmsg{color:var(--muted);padding:40px 0;text-align:center}
+  .kv{color:var(--muted);font-size:12.5px}
+  .esc{font-size:12.5px;color:var(--warn);background:rgba(227,169,90,.08);border:1px solid rgba(227,169,90,.25);
+       border-radius:7px;padding:8px 11px;margin-top:6px}
+  .esc.block{color:#f0b6b6;background:rgba(228,106,106,.08);border-color:rgba(228,106,106,.28)}
+</style>
+</head>
+<body>
+<header>
+  <div class="head">
+    <div class="brand">
+      <h1>R&amp;D Credit Study</h1>
+      <span class="eng" id="engline">—</span>
+      <span class="tag" id="statustag">—</span>
+    </div>
+    <div class="thesis">
+      <b>AI did the work. Deterministic engines did the math. Evidence supports every material claim. The CPA
+      remains the authority.</b> This is a reviewable work product — pick any statement and see exactly why it exists.
+    </div>
+    <div class="status-row" id="statusrow"></div>
+  </div>
+  <nav class="tabs">
+    <button data-tab="deliverable" class="active">Deliverable</button>
+    <button data-tab="evidence">Evidence</button>
+  </nav>
+</header>
+
+<div class="wrap">
+  <div id="tab-deliverable">
+    <h2 class="sec">The trust model — three cases, made explicit</h2>
+    <div class="lead">The system computes only when evidence is sufficient. When evidence is missing it abstains;
+      when it conflicts it refuses to resolve silently.</div>
+    <div class="trust" id="trust"></div>
+
+    <h2 class="sec">The deliverable — challenge any statement</h2>
+    <div class="lead">Every material sentence is a claim with provenance. Click one to see its evidence, cited
+      authority, or the cross-checked computation behind it.</div>
+    <div class="claims" id="claims"></div>
+
+    <details class="runtime">
+      <summary>Runtime details</summary>
+      <dl class="rt" id="runtime"></dl>
+    </details>
+  </div>
+
+  <div id="tab-evidence" hidden>
+    <h2 class="sec">Deterministic computation — §41 Engine A = Engine B</h2>
+    <div id="ev-comp"></div>
+    <h2 class="sec">Reconciliations</h2>
+    <div class="lead">Deterministic checks run before any judgment. A mismatch is blocking — the disputed figure
+      is held, never averaged.</div>
+    <div class="card"><table class="grid" id="ev-recon"></table></div>
+    <h2 class="sec">Source documents</h2>
+    <div class="card"><table class="grid" id="ev-docs"></table></div>
+  </div>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" aria-hidden="true">
+  <div class="dhead">
+    <div><div class="prov-h" style="margin:0 0 4px" id="d-type">—</div><h3 id="d-assertion">—</h3></div>
+    <button class="x" id="d-close" aria-label="Close">✕</button>
+  </div>
+  <div class="dbody" id="d-body"></div>
+</aside>
+
+<script>
+const $ = (s,r=document)=>r.querySelector(s);
+const el=(t,c,h)=>{const e=document.createElement(t);if(c)e.className=c;if(h!=null)e.innerHTML=h;return e;};
+const money=v=>v==null?"—":"$"+Number(v).toLocaleString("en-US",{maximumFractionDigits:0});
+const esc=s=>String(s==null?"":s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+const TYPE_LABEL={NUMBER:"Number",FACT:"Fact",PROFESSIONAL_JUDGMENT:"Professional judgment",
+  AUTHORITY_INTERPRETATION:"Authority interpretation"};
+
+let DATA=null;
+
+fetch("/api/deliverable").then(r=>r.json()).then(d=>{
+  if(d.error){$("#claims").innerHTML='<div class="loadmsg">Error: '+esc(d.error)+'</div>';return;}
+  DATA=d; render(d);
+}).catch(e=>{$("#claims").innerHTML='<div class="loadmsg">'+esc(e)+'</div>';});
+
+function render(d){
+  $("#engline").textContent=d.engagement.client+" · "+d.engagement.scope;
+  const st=$("#statustag"); st.textContent=d.status.replace(/_/g," ");
+  st.style.color=d.status==="signed"?"var(--pass)":"var(--warn)";
+
+  // operational status pills
+  const row=$("#statusrow"); row.innerHTML="";
+  d.operational_status.forEach(s=>{
+    const p=el("span","pill "+(s.ok?"ok":"warn"));
+    p.title=s.detail;
+    p.innerHTML='<span class="dot"></span><b>'+esc(s.label)+'</b> '+esc(s.state);
+    row.appendChild(p);
+  });
+
+  renderTrust(d.trust_model);
+  renderClaims(d.claims);
+  renderRuntime(d.runtime);
+  renderEvidence(d);
+}
+
+function renderTrust(t){
+  const box=$("#trust"); box.innerHTML="";
+  // sufficient
+  const s=el("div","case suff");
+  s.innerHTML='<div class="cap">Sufficient</div><div class="beh">'+esc(t.sufficient.headline)+'</div>'+
+    '<div class="big">'+money(t.sufficient.credit)+'</div>'+
+    '<small>§41 credit ('+esc(t.sufficient.elected||"—")+' method) · QRE '+money(t.sufficient.qre)+'</small>'+
+    '<div class="item">Two independent engines agree on every figure. The number is computed, not asserted.</div>';
+  box.appendChild(s);
+  // missing
+  const m=el("div","case miss");
+  let mi=t.missing.projects.map(p=>'<b>'+esc(p.subject)+'</b> — '+
+    p.assessments.filter(a=>a.result==="INSUFFICIENT").length+' of 4 criteria insufficient').join("<br>")||"none";
+  m.innerHTML='<div class="cap">Missing</div><div class="beh">'+esc(t.missing.headline)+'</div>'+
+    '<div class="item">'+mi+'</div>'+
+    (t.missing.escalations.length?'<div class="esc">'+esc(t.missing.escalations[0])+'</div>':'')+
+    '<div class="item">It did not invent the missing evidence. It excluded the project from the credit.</div>';
+  box.appendChild(m);
+  // conflicting
+  const c=el("div","case conf");
+  let ci="none";
+  if(t.conflicting.reconciliations.length){
+    const r=t.conflicting.reconciliations[0];
+    ci='<b>'+esc(r.source_a)+'</b> '+r.value_a+'% vs <b>'+esc(r.source_b)+'</b> '+r.value_b+
+       '% · Δ '+Math.abs(r.difference).toFixed(0)+'pp';
+  }
+  c.innerHTML='<div class="cap">Conflicting</div><div class="beh">'+esc(t.conflicting.headline)+'</div>'+
+    '<div class="item">'+ci+'</div>'+
+    (t.conflicting.escalations.length?'<div class="esc block">'+esc(t.conflicting.escalations[0])+'</div>':'')+
+    '<div class="item">Conflicting evidence is not averaged away. No calculation is performed on the disputed allocation.</div>';
+  box.appendChild(c);
+}
+
+function renderClaims(claims){
+  const box=$("#claims"); box.innerHTML="";
+  const groups={};
+  claims.forEach(c=>{(groups[c.section]=groups[c.section]||[]).push(c);});
+  Object.keys(groups).forEach(sec=>{
+    const g=el("div","cgroup");
+    g.appendChild(el("h3",null,esc(sec.replace(/_/g," "))));
+    groups[sec].forEach(c=>{
+      const row=el("div","claim");
+      row.innerHTML='<span class="badge b-'+c.type+'">'+esc((TYPE_LABEL[c.type]||c.type))+'</span>'+
+        '<div class="txt"><div class="assertion">'+esc(c.assertion)+'</div>'+
+        '<div class="hint">'+provHint(c)+'</div></div>'+
+        (c.verified?'<span class="chk">✓ verified</span>':'<span class="chk" style="color:var(--block)">✕ blocked</span>');
+      row.onclick=()=>openDrawer(c);
+      g.appendChild(row);
+    });
+    box.appendChild(g);
+  });
+}
+function provHint(c){
+  const p=c.provenance;
+  if(c.type==="NUMBER"&&p.computation) return "computed · Engine A = Engine B ✓ — click for the cross-check";
+  if(c.type==="FACT") return (p.evidence||[]).length+" source reference(s) — click to see the document + locator";
+  if(c.type==="AUTHORITY_INTERPRETATION") return (p.authority||[]).map(a=>a.authority).join(", ")+" — click for the passage";
+  if(c.type==="PROFESSIONAL_JUDGMENT") return "structured four-part assessment — click for the claim graph";
+  return "click for provenance";
+}
+
+function renderRuntime(rt){
+  const dl=$("#runtime"); dl.innerHTML="";
+  const map={corpus:"Evidence corpus",provider:"Judgment provider",calculation:"Calculation",
+    ledger:"Ledger",verification:"Verification"};
+  Object.keys(map).forEach(k=>{
+    dl.appendChild(el("dt",null,map[k]));
+    dl.appendChild(el("dd",null,esc(rt[k])));
+  });
+}
+
+/* ---------- provenance drawer ---------- */
+function openDrawer(c){
+  $("#d-type").textContent=TYPE_LABEL[c.type]||c.type;
+  $("#d-type").style.color=({NUMBER:"var(--number)",FACT:"var(--fact)",
+    PROFESSIONAL_JUDGMENT:"var(--judgment)",AUTHORITY_INTERPRETATION:"var(--authority)"})[c.type];
+  $("#d-assertion").textContent=c.assertion;
+  const body=$("#d-body"); body.innerHTML="";
+  const p=c.provenance;
+
+  if(c.type==="NUMBER"&&p.computation) body.appendChild(computationView(p.computation));
+  else if(c.type==="FACT") body.appendChild(evidenceView(p.evidence||[]));
+  else if(c.type==="AUTHORITY_INTERPRETATION") body.appendChild(authorityView(p.authority||[]));
+  else if(c.type==="PROFESSIONAL_JUDGMENT") body.appendChild(graphView(p.judgment,c.assertion));
+
+  // verification checks (every claim)
+  const vh=el("div","prov-h",null); vh.textContent="Verification"; body.appendChild(vh);
+  const cs=el("div","checks");
+  c.checks.forEach(ck=>{
+    const r=el("div","checkrow "+(ck.ok?"ok":"no"));
+    r.innerHTML='<span class="m">'+(ck.ok?"✓":"✕")+'</span><span>'+esc(ck.check)+
+      (ck.detail?' <span style="color:var(--faint)">('+esc(ck.detail)+')</span>':'')+'</span>';
+    cs.appendChild(r);
+  });
+  body.appendChild(cs);
+
+  $("#scrim").classList.add("open");
+  const dr=$("#drawer"); dr.classList.add("open"); dr.setAttribute("aria-hidden","false");
+  dr.scrollTop=0;
+}
+function closeDrawer(){
+  $("#scrim").classList.remove("open");
+  const dr=$("#drawer"); dr.classList.remove("open"); dr.setAttribute("aria-hidden","true");
+}
+$("#d-close").onclick=closeDrawer; $("#scrim").onclick=closeDrawer;
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeDrawer();});
+
+function computationView(comp){
+  const w=el("div");
+  const banner=el("div","xcbanner");
+  banner.innerHTML='<span class="ico">'+(comp.agreement?"✓":"✕")+'</span>'+
+    (comp.agreement?"CROSS-CHECK PASSED — two independent implementations of IRC §41 agree on every figure"
+                    :"CROSS-CHECK FAILED — engines disagree; number withheld");
+  w.appendChild(banner);
+  const t=el("table","xc");
+  t.innerHTML='<tr><th>Figure</th><th>Engine A</th><th>Engine B</th><th>✓</th></tr>';
+  comp.cross_check.forEach(x=>{
+    t.innerHTML+='<tr><td>'+esc(x.figure.toUpperCase())+'</td><td>'+money(x.engine_a)+'</td>'+
+      '<td>'+money(x.engine_b)+'</td><td style="color:'+(x.agree?"var(--pass)":"var(--block)")+'">'+
+      (x.agree?"=":"≠")+'</td></tr>';
+  });
+  w.appendChild(t);
+  const h=el("div","prov-h",null); h.textContent="Elected method · "+(comp.elected||"—"); w.appendChild(h);
+  const comps=comp.components||{};
+  if(Object.keys(comps).length){
+    const ct=el("table","xc");
+    ct.innerHTML='<tr><th>Component</th><th>Amount</th></tr>';
+    Object.keys(comps).forEach(k=>{
+      const v=comps[k];
+      ct.innerHTML+='<tr><td>'+esc(k.replace(/_/g," "))+'</td><td>'+
+        (typeof v==="number"?money(v):esc(v))+'</td></tr>';
+    });
+    w.appendChild(ct);
+  }
+  const note=el("div","kv",null);
+  note.style.marginTop="10px";
+  note.textContent="The number is computed by code (Engine A, schedule-style) and independently re-computed "+
+    "(Engine B, fold-style). The model never produces or edits a figure.";
+  w.appendChild(note);
+  return w;
+}
+
+function evidenceView(evs){
+  const w=el("div");
+  w.appendChild(Object.assign(el("div","prov-h"),{textContent:"Source evidence"}));
+  if(!evs.length) w.appendChild(el("div","kv","no evidence references"));
+  evs.forEach(e=>{
+    const c=el("div","ev");
+    c.innerHTML='<div class="doc">'+esc(e.doc_id)+'</div><span class="loc">'+esc(e.locator)+'</span>'+
+      (e.quote?'<div class="quote">'+esc(e.quote)+'</div>':'');
+    w.appendChild(c);
+  });
+  return w;
+}
+
+function authorityView(auths){
+  const w=el("div");
+  w.appendChild(Object.assign(el("div","prov-h"),{textContent:"Cited authority — re-retrieved from the corpus"}));
+  auths.forEach(a=>{
+    const c=el("div","ev");
+    c.innerHTML='<div class="doc">'+esc(a.authority)+(a.passage_ref?' · '+esc(a.passage_ref):'')+'</div>'+
+      (a.resolved?'<span class="resolved">✓ resolved in corpus</span>':'<span style="color:var(--block)">✕ unresolved</span>')+
+      (a.passage?'<div class="passage">'+esc(a.passage)+'</div>':'');
+    w.appendChild(c);
+  });
+  return w;
+}
+
+/* the drawn claim graph: criteria → deterministic policy → conclusion → claim */
+function graphView(j,assertion){
+  const w=el("div");
+  w.appendChild(Object.assign(el("div","prov-h"),{textContent:"The claim graph"}));
+  if(!j){w.appendChild(el("div","kv","no structured judgment"));return w;}
+
+  const g=el("div","graph");
+  const svg=document.createElementNS("http://www.w3.org/2000/svg","svg");
+  g.appendChild(svg);
+  const layers=el("div","glayers");
+
+  // col 1: the four criteria
+  const c1=el("div","gcol");
+  c1.appendChild(el("div","lbl","Four-part test (§41(d)(1))"));
+  const critNodes=[];
+  j.assessments.forEach(a=>{
+    const n=el("div","node crit");
+    let chips=(a.authority||[]).map(x=>'<span class="chip">'+esc(x.authority)+'</span>').join("")+
+              (a.evidence||[]).map(x=>'<span class="chip">'+esc(x.doc_id)+'·'+esc(x.locator)+'</span>').join("");
+    n.innerHTML='<span class="rbadge r-'+a.result+'">'+a.result+' '+a.confidence.toFixed(2)+'</span>'+
+      '<div class="name">'+esc(a.criterion.replace(/_/g," "))+'</div>'+
+      '<div class="rat">'+esc(a.rationale)+'</div>'+
+      (chips?'<div class="chips">'+chips+'</div>':'');
+    c1.appendChild(n); critNodes.push(n);
+  });
+
+  // col 2: deterministic policy
+  const c2=el("div","gcol");
+  c2.appendChild(el("div","lbl","Deterministic policy"));
+  const pol=el("div","node policy");
+  pol.innerHTML='<div class="k">§41 qualification policy</div><div class="v">All four criteria required.'+
+    '<br>Any INSUFFICIENT → review.</div>';
+  c2.appendChild(pol);
+
+  // col 3: conclusion → claim
+  const c3=el("div","gcol");
+  c3.appendChild(el("div","lbl","Policy conclusion"));
+  const con=el("div","node concl "+j.conclusion);
+  con.innerHTML='<div class="k" style="color:var(--faint);font-size:11px">'+esc(j.subject)+'</div>'+
+    '<div class="v">'+j.conclusion.replace(/_/g," ")+'</div>';
+  c3.appendChild(con);
+
+  layers.append(c1,c2,c3);
+  g.appendChild(layers);
+  w.appendChild(g);
+
+  // draw connectors once laid out
+  requestAnimationFrame(()=>drawEdges(g,svg,critNodes,pol,con));
+  const note=el("div","kv");
+  note.style.marginTop="12px";
+  note.textContent="The model fills each criterion (PASS / FAIL / INSUFFICIENT) from the evidence. "+
+    "A deterministic policy — not the model — derives the conclusion.";
+  w.appendChild(note);
+  return w;
+}
+
+function drawEdges(container,svg,crits,pol,con){
+  const R=container.getBoundingClientRect();
+  svg.setAttribute("width",R.width); svg.setAttribute("height",R.height);
+  svg.innerHTML="";
+  const edge=(a,b,color)=>{
+    const A=a.getBoundingClientRect(),B=b.getBoundingClientRect();
+    const x1=A.right-R.left,y1=A.top-R.top+A.height/2;
+    const x2=B.left-R.left,y2=B.top-R.top+B.height/2;
+    const mx=(x1+x2)/2;
+    const path=document.createElementNS("http://www.w3.org/2000/svg","path");
+    path.setAttribute("d",`M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`);
+    path.setAttribute("fill","none"); path.setAttribute("stroke",color);
+    path.setAttribute("stroke-width","1.4"); path.setAttribute("opacity",".55");
+    svg.appendChild(path);
+  };
+  crits.forEach(c=>edge(c,pol,"var(--border-2)"));
+  edge(pol,con,"var(--accent)");
+}
+window.addEventListener("resize",()=>{
+  const dr=$("#drawer"); if(!dr.classList.contains("open"))return;
+  const g=dr.querySelector(".graph"); if(!g)return;
+  const svg=g.querySelector("svg");
+  const crits=[...g.querySelectorAll(".crit")], pol=g.querySelector(".policy"), con=g.querySelector(".concl");
+  if(pol&&con)drawEdges(g,svg,crits,pol,con);
+});
+
+/* ---------- evidence tab ---------- */
+function renderEvidence(d){
+  // computation
+  const cw=$("#ev-comp"); cw.innerHTML="";
+  d.computations.forEach(comp=>{
+    const card=el("div","card");
+    card.appendChild(computationView(comp));
+    cw.appendChild(card);
+  });
+  // reconciliations
+  const rt=$("#ev-recon");
+  rt.innerHTML='<tr><th>Source A</th><th>Source B</th><th>Rule</th><th class="num">A</th><th class="num">B</th>'+
+    '<th class="num">Δ</th><th>Status</th></tr>';
+  d.reconciliations.forEach(r=>{
+    rt.innerHTML+='<tr><td>'+esc(r.source_a)+'</td><td>'+esc(r.source_b)+'</td><td>'+esc(r.rule)+'</td>'+
+      '<td class="num">'+r.value_a+'</td><td class="num">'+r.value_b+'</td><td class="num">'+r.difference+'</td>'+
+      '<td class="st-'+r.status+'">'+r.status+(r.blocking?" · held":"")+'</td></tr>';
+  });
+  // documents
+  const dt=$("#ev-docs");
+  dt.innerHTML='<tr><th>Document</th><th>Kind</th><th>File</th><th class="num">Extraction</th><th>Extractor</th></tr>';
+  d.documents.forEach(x=>{
+    dt.innerHTML+='<tr><td>'+esc(x.doc_id)+'</td><td>'+esc(x.kind)+'</td><td class="mono">'+esc(x.uri)+'</td>'+
+      '<td class="num">'+x.confidence.extraction.toFixed(2)+'</td><td class="mono">'+esc(x.provenance)+'</td></tr>';
+  });
+}
+
+/* ---------- tabs ---------- */
+document.querySelectorAll("nav.tabs button").forEach(b=>{
+  b.onclick=()=>{
+    document.querySelectorAll("nav.tabs button").forEach(x=>x.classList.remove("active"));
+    b.classList.add("active");
+    $("#tab-deliverable").hidden=b.dataset.tab!=="deliverable";
+    $("#tab-evidence").hidden=b.dataset.tab!=="evidence";
+  };
+});
+</script>
+</body>
+</html>
