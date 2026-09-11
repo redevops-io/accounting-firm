@@ -1,0 +1,7 @@
+Project Atlas: development of a novel distributed ledger reconciliation engine capable of resolving
+conflicting entries across heterogeneous accounting systems in real time. At the outset the capability
+and method of achieving real-time reconciliation were uncertain; multiple architectural approaches were
+considered.
+
+Project Borealis: a cosmetic restyle of the existing customer dashboard using established UI components,
+with no change to underlying functionality.

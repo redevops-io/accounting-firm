@@ -1,0 +1,3 @@
+Project Atlas experimentation log: the team evaluated three reconciliation algorithms (CRDT-based,
+vector-clock, and consensus-log), ran iterative latency benchmarks, and eliminated technical uncertainty
+about achievable throughput through a systematic process of trial, measurement, and refinement.

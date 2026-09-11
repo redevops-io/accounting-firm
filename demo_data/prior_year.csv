@@ -1,0 +1,6 @@
+key, value
+prior_qre_y1, "$100,000"
+prior_qre_y2, "$100,000"
+prior_qre_y3, "$100,000"
+fixed_base_pct, 3
+avg_gross_receipts_prior4, "$3,000,000"

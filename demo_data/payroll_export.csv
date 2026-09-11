@@ -1,0 +1,6 @@
+Employee, Department, Gross Annual Wages, R&D Allocation
+"Chen, Alice", Engineering, "$180,000", "Atlas 80%"
+"Rao, Vik", R&D, "$150,000", "Atlas 60%; Borealis 20%"
+"Lee, Dana", Product, "$120,000", "Atlas 50%"
+, , ,
+Notes: reconcile to GL 6000, , ,
