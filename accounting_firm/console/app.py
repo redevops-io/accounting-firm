@@ -57,6 +57,12 @@ class _Handler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:                                    # noqa: N802 (stdlib signature)
         path = _subpath(self.path.split("?", 1)[0])
         if path in ("/", "/index.html"):
+            # A fresh page load restarts a *completed* review so each visitor to the shared demo opens on
+            # "ready for your review" — but never disturbs a review already in progress (ready_for_review).
+            with _lock:
+                s = _get_session()
+                if s.deliverable.status in ("signed", "rejected"):
+                    s.reset()
             self._send(200, _index_html(), "text/html; charset=utf-8")
         elif path == "/api/deliverable":
             try:
