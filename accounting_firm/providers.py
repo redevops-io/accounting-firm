@@ -32,6 +32,9 @@ class DeterministicProvider:
     def draft(self, engagement: Engagement, d: Deliverable) -> str:
         return render_claim_graph(engagement, d)
 
+    def extract(self, system: str, raw_text: str, fields: list[str]) -> dict:
+        return {}                                     # offline: the deliverable's deterministic parser handles it
+
 
 # ── real model (OpenAI-compatible; env-gated) ────────────────────────────────────
 class LLMProvider:
@@ -56,6 +59,16 @@ class LLMProvider:
                                      authority=c.authority or a.authority,
                                      confidence=a.confidence, rationale=a.rationale)
         return out
+
+    def extract(self, system: str, raw_text: str, fields: list[str]) -> dict:
+        """Extract the requested fields from an unstructured document (Phase-3 ingestion seam)."""
+        user = (f"Document:\n{raw_text[:6000]}\n\nExtract EXACTLY these fields as strict JSON {{field: value}}; "
+                f"use null if a field is absent. Fields: {', '.join(fields)}")
+        try:
+            data = json.loads(_json_slice(self.chat(system, user)))
+            return {k: data[k] for k in fields if isinstance(data, dict) and data.get(k) is not None}
+        except Exception:
+            return {}
 
     def draft(self, engagement: Engagement, d: Deliverable) -> str:
         graph = [{"id": c.claim_id, "type": c.claim_type.value, "assertion": c.assertion} for c in d.claims]

@@ -49,9 +49,12 @@ calc (with an A/B cross-check), and criteria — **no change to the core loop**.
 - **The model seam (`providers.py`):** per-criterion **assessment** and **drafting** go through a `Provider`.
   `DeterministicProvider` is the offline default (demo/tests); `LLMProvider` (OpenAI-compatible, `FIRM_LLM_*`)
   does real judgment/drafting — even then it fills PASS/FAIL/INSUFFICIENT per criterion and a deterministic
-  policy concludes. Document extraction is a deterministic parser today (unstructured OCR/LLM ingestion is Phase 3).
-- **Runtime integration points (next):** ledger → `agentic-os` DuckDB/Postgres event ledger; grounding →
-  `redevops-rag`; CPA-amendment learning → `context-runtime` (AI layer only — never the tax rules).
+  policy concludes. Unstructured extraction also routes through the provider (`provider.extract`) with a
+  deterministic-parser fallback; broad OCR / multi-format ingestion is the remaining Phase-3 breadth.
+- **Runtime backends (wired, env-gated, offline default):** grounding → `redevops-rag` Store
+  (`FIRM_CORPUS=rag` + `FIRM_RAG_DB`); durable ledger → `agentic-os` DuckDB/Postgres event ledger
+  (`FIRM_LEDGER=agentic-os`); model → `FIRM_LLM_*`. CPA-amendment learning → `context-runtime` (AI layer
+  only — never the tax rules).
 
 ## Run
 

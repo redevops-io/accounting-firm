@@ -25,14 +25,25 @@ def _money(s: str) -> float:
     return float(re.sub(r"[^0-9.\-]", "", s or "0") or 0)
 
 
-def extract(paths: dict[str, str]) -> tuple[dict, list[SourceDocument]]:
+def extract(paths: dict[str, str], provider=None) -> tuple[dict, list[SourceDocument]]:
+    provider = provider or select_provider()
     with open(paths["contract"]) as fh:
         contract = fh.read()
-    fee = _money((re.search(r"fee[:\s]*\$([\d,]+)", contract, re.I) or re.search(r"\$([\d,]+)", contract)).group(1))
-    term = int((re.search(r"(\d+)\s*-?\s*month", contract, re.I)).group(1))
-    start_m = int((re.search(r"commenc\w*\s+\d{4}-(\d{2})", contract, re.I)).group(1))
+    # Phase-3 ingestion seam: the model extracts from the unstructured contract; regex is the offline fallback.
+    ex = provider.extract("Extract fields from a SaaS customer contract.", contract,
+                          ["total_fee", "term_months", "commencement_month", "satisfied_over_time"])
+
+    def _rx(pat):
+        m = re.search(pat, contract, re.I)
+        return m.group(1) if m else None
+    fee = _money(str(ex["total_fee"])) if ex.get("total_fee") is not None \
+        else _money(_rx(r"fee[:\s]*\$([\d,]+)") or _rx(r"\$([\d,]+)"))
+    term = int(ex["term_months"]) if ex.get("term_months") is not None else int(_rx(r"(\d+)\s*-?\s*month"))
+    start_m = int(ex["commencement_month"]) if ex.get("commencement_month") is not None \
+        else int(_rx(r"commenc\w*\s+\d{4}-(\d{2})"))
+    over_time = bool(ex["satisfied_over_time"]) if ex.get("satisfied_over_time") is not None \
+        else ("simultaneously receives and consumes" in contract.lower())
     elapsed = 12 - start_m + 1                                # months elapsed to Dec 31 of the commencement year
-    over_time = "simultaneously receives and consumes" in contract.lower()
     facts = {"total_fee": fee, "term_months": term, "months_elapsed": elapsed, "over_time": over_time,
              "contract_text": contract}
 
@@ -92,7 +103,7 @@ def run(engagement: Engagement, paths: dict[str, str], cpa_review, provider=None
     led = select_ledger(engagement.engagement_id)
     led.append("engagement.start", {"client": engagement.client, "type": engagement.deliverable_type,
                                     "provider": provider.name})
-    facts, docs = extract(paths)
+    facts, docs = extract(paths, provider)
     led.append("documents.ingested", {"docs": [d.kind for d in docs]})
     led.append("facts.extracted", {"total_fee": facts["total_fee"], "term_months": facts["term_months"]})
 
