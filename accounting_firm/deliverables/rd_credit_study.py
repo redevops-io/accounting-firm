@@ -14,7 +14,7 @@ from dataclasses import asdict
 from .. import claims, mission, reconcile
 from ..contracts import (AuthorityRef, ClaimType, Computation, Conclusion, Confidence, Criterion, Deliverable,
                         EvidenceRef, Engagement, ResearchQualification, SourceDocument)
-from ..ledger import Ledger
+from ..ledger import select_ledger
 from ..providers import select_provider
 from ..section41 import QREInputs, compute_credit, conclude
 
@@ -129,7 +129,7 @@ def _assess_project(provider, project: str, facts: dict) -> ResearchQualificatio
 # ── the governed mission ────────────────────────────────────────────────────────
 def run(engagement: Engagement, paths: dict[str, str], cpa_review, provider=None) -> tuple[Deliverable, Ledger]:
     provider = provider or select_provider()
-    led = Ledger(engagement.engagement_id)
+    led = select_ledger(engagement.engagement_id)
     led.append("engagement.start", {"client": engagement.client, "type": engagement.deliverable_type,
                                     "provider": provider.name})
 

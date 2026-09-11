@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import time
 from dataclasses import dataclass, field
 
@@ -40,3 +41,40 @@ class Ledger:
 
     def bundle(self) -> list[dict]:
         return [{"seq": e.seq, "type": e.type, "hash": e.hash, "payload": e.payload} for e in self._events]
+
+
+def _hash(seq: int, type: str, payload: dict) -> str:
+    return hashlib.sha256(json.dumps({"seq": seq, "type": type, "payload": payload},
+                                     sort_keys=True, default=str).encode()).hexdigest()[:16]
+
+
+class AgenticOSLedger:
+    """Adapter over the agentic-os durable event ledger (DuckDBEventStore / PostgresEventStore, PR #147),
+    behind the same append/events/bundle surface. The engagement is the mission_id; selected by
+    FIRM_LEDGER=agentic-os (honouring MISSION_EVENT_BACKEND). Same audit trail, now durable + queryable."""
+
+    def __init__(self, engagement_id: str, store):
+        self.engagement_id = engagement_id
+        self._store = store
+
+    def append(self, type: str, payload: dict) -> LedgerEvent:
+        ev = self._store.append(type, self.engagement_id, payload)
+        return LedgerEvent(ev.seq, ev.ts, ev.type, payload, _hash(ev.seq, ev.type, payload))
+
+    def events(self) -> list[LedgerEvent]:
+        return [LedgerEvent(e.seq, e.ts, e.type, e.payload, _hash(e.seq, e.type, e.payload))
+                for e in self._store.for_mission(self.engagement_id)]
+
+    def bundle(self) -> list[dict]:
+        return [{"seq": e.seq, "type": e.type, "hash": e.hash, "payload": e.payload} for e in self.events()]
+
+
+def select_ledger(engagement_id: str):
+    """The durable agentic-os ledger when FIRM_LEDGER=agentic-os; else the in-repo hash-chained ledger."""
+    if os.environ.get("FIRM_LEDGER") == "agentic-os":
+        try:
+            from agentic_os.mission.event_backends import open_event_store   # noqa: PLC0415
+            return AgenticOSLedger(engagement_id, open_event_store())
+        except Exception:                                        # agentic-os absent → in-repo ledger
+            pass
+    return Ledger(engagement_id)

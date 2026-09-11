@@ -9,11 +9,12 @@ A claim with any failing check blocks the sign gate.
 """
 from __future__ import annotations
 
-from . import corpus
 from .contracts import ClaimType, Conclusion, Deliverable
+from .resolvers import select_resolver
 
 
-def verify(deliverable: Deliverable) -> dict:
+def verify(deliverable: Deliverable, resolver=None) -> dict:
+    resolver = resolver or select_resolver()
     comps = {c.name: c for c in deliverable.computations}
     # a judgment is keyed by project_id (ResearchQualification) or subject (generic Judgment)
     quals = {(getattr(q, "project_id", None) or getattr(q, "subject", None)): q
@@ -46,7 +47,7 @@ def verify(deliverable: Deliverable) -> dict:
         elif c.claim_type == ClaimType.AUTHORITY_INTERPRETATION:
             check("has_authority", len(c.authority_refs) >= 1)
             for a in c.authority_refs:
-                resolved, _ = corpus.resolve(a.authority, (a.passage_ref,) if a.passage_ref else ())
+                resolved, _ = resolver.resolve(a.authority, (a.passage_ref,) if a.passage_ref else ())
                 check(f"resolves:{a.authority}", resolved, a.authority)
 
         if not c.verified:
