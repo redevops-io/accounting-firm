@@ -109,12 +109,20 @@ def _parse_assessment(criterion: str, obj) -> Assessment:
                       confidence=float(obj.get("confidence", 0.0) or 0.0), rationale=str(obj.get("rationale", "")))
 
 
+def _strip_think(s: str) -> str:
+    # reasoning models (Qwen etc.) emit <think>…</think>; drop it before locating the JSON
+    i = s.rfind("</think>")
+    return s[i + 8:] if i != -1 else s
+
+
 def _json_slice(s: str) -> str:
+    s = _strip_think(s)
     i, j = s.find("{"), s.rfind("}")
     return s[i:j + 1] if i >= 0 and j > i else s
 
 
 def _json_slice_array(s: str) -> str:
+    s = _strip_think(s)
     i, j = s.find("["), s.rfind("]")
     return s[i:j + 1] if i >= 0 and j > i else s
 
