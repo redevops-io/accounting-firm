@@ -201,6 +201,45 @@
        padding:12px 15px;margin-bottom:14px;font-size:13px;color:#bfeede}
   .sealbox .seal{font-family:var(--mono);color:var(--text)}
 
+  /* runtime map — left panel (never overlaps the right provenance drawer) */
+  nav.tabs .rtbtn{margin-left:auto;border:1px solid var(--border-2);background:var(--surface-2);
+    color:var(--muted);border-radius:7px;padding:6px 11px;font-size:12.5px;cursor:pointer;align-self:center}
+  nav.tabs .rtbtn:hover{color:var(--text)}
+  nav.tabs .rtbtn.on{color:var(--text);border-color:var(--accent)}
+  .rtmap{position:fixed;left:0;top:0;bottom:0;width:344px;background:var(--surface);
+    border-right:1px solid var(--border);transform:translateX(-100%);transition:transform .22s cubic-bezier(.4,0,.2,1);
+    z-index:45;overflow-y:auto;box-shadow:12px 0 40px rgba(0,0,0,.35)}
+  .rtmap.open{transform:none}
+  .rtmap .rh{position:sticky;top:0;background:var(--surface);border-bottom:1px solid var(--border);
+    padding:14px 16px;z-index:1}
+  .rtmap .rh .tt{font-size:13px;font-weight:600}
+  .rtmap .rh .nt{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.45;min-height:34px}
+  .rtmap .rh .lg{font-size:10.5px;color:var(--faint);margin-top:8px;display:flex;gap:12px}
+  .rtmap .rh .lg i{font-style:normal;display:inline-flex;align-items:center;gap:5px}
+  .rtmap .rh .lg .sw{width:9px;height:9px;border-radius:2px;display:inline-block}
+  .rtbody{padding:12px 14px 40px;display:flex;flex-direction:column;gap:14px}
+  .plane{border:1px solid var(--border);border-radius:10px;padding:10px 11px}
+  .plane .pl-h{font-size:10px;text-transform:uppercase;letter-spacing:.06em;font-weight:700;margin-bottom:9px;
+    display:flex;align-items:center;gap:7px}
+  .plane .pl-h .dot{width:8px;height:8px;border-radius:2px}
+  .plane.control{border-color:rgba(139,147,240,.28)} .plane.control .pl-h{color:#a7adf5}
+  .plane.control .pl-h .dot,.sw.control{background:#8b93f0}
+  .plane.seams{border-color:rgba(215,180,106,.28)} .plane.seams .pl-h{color:#e0c07e}
+  .plane.seams .pl-h .dot,.sw.seams{background:#d7b46a}
+  .plane.data{border-color:rgba(78,201,165,.28)} .plane.data .pl-h{color:#77dcc0}
+  .plane.data .pl-h .dot,.sw.data{background:#4ec9a5}
+  .rnodes{display:flex;flex-direction:column;gap:6px}
+  .rnode{border:1px solid var(--border);border-radius:7px;padding:7px 9px;background:var(--bg);
+    opacity:.42;transition:opacity .18s,border-color .18s,box-shadow .18s}
+  .rnode .n{font-size:12px;font-weight:600}
+  .rnode .s{font-size:10.5px;color:var(--faint);margin-top:1px;font-family:var(--mono)}
+  .rnode.active{opacity:1}
+  .plane.control .rnode.active{border-color:#8b93f0;box-shadow:0 0 0 1px rgba(139,147,240,.4),0 4px 16px rgba(139,147,240,.12)}
+  .plane.seams .rnode.active{border-color:#d7b46a;box-shadow:0 0 0 1px rgba(215,180,106,.4),0 4px 16px rgba(215,180,106,.12)}
+  .plane.data .rnode.active{border-color:#4ec9a5;box-shadow:0 0 0 1px rgba(78,201,165,.4),0 4px 16px rgba(78,201,165,.12)}
+  .seamflow{text-align:center;color:var(--faint);font-size:14px;margin:-6px 0}
+  @media(max-width:900px){.rtmap{width:min(344px,90vw)}}
+
   /* drawer */
   .scrim{position:fixed;inset:0;background:rgba(6,8,12,.55);opacity:0;pointer-events:none;
          transition:opacity .18s;z-index:40}
@@ -294,6 +333,7 @@
     <button data-tab="evidence">Evidence</button>
     <button data-tab="explain">Explain</button>
     <button data-tab="ledger">Ledger</button>
+    <button class="rtbtn" id="rtbtn" title="Show which runtime elements each step exercises">⧉ Runtime map</button>
   </nav>
 </header>
 
@@ -358,6 +398,19 @@
   </div>
 </div>
 
+<aside class="rtmap" id="rtmap" aria-hidden="true">
+  <div class="rh">
+    <div class="tt">ReDevOps runtime — what this step exercises</div>
+    <div class="nt" id="rt-note">A licensed accounting firm is one tenant on a general runtime. Watch which
+      planes light up as you review.</div>
+    <div class="lg">
+      <i><span class="sw control"></span>lit = active now</i>
+      <i><span class="sw" style="background:var(--border-2)"></span>dim = in the runtime, unused here</i>
+    </div>
+  </div>
+  <div class="rtbody" id="rt-body"></div>
+</aside>
+
 <div class="scrim" id="scrim"></div>
 <aside class="drawer" id="drawer" aria-hidden="true">
   <div class="dhead">
@@ -379,6 +432,7 @@ const TYPE_COLOR={NUMBER:"var(--number)",FACT:"var(--fact)",PROFESSIONAL_JUDGMEN
 
 let DATA=null;
 let CURRENT="rd_credit_study";                                 // which deliverable the console is showing
+let CURTAB="deliverable", OPENTYPE=null, REVIEWCTX=null;       // drive the runtime-map highlight
 let BASE="__BASE__"; if(BASE.startsWith("__"))BASE="";        // server injects the deployment prefix
 
 function load(id){
@@ -395,6 +449,91 @@ function post(url,body){
   const sep=url.includes("?")?"&":"?";
   return fetch(BASE+url+sep+"id="+encodeURIComponent(CURRENT),
     {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body||{})}).then(r=>r.json());
+}
+
+/* ---------- runtime map (the ReDevOps architecture, highlighted per step) ---------- */
+const RUNTIME=[
+  {plane:"CONTROL PLANE",cls:"control",items:[
+    {id:"contracts",n:"Value contracts",s:"Claim · Assessment · Computation · SignOff"},
+    {id:"decision",n:"Decision & planning",s:"Context Runtime · cr-auto router"},
+    {id:"governance",n:"Governance planes",s:"guardrails · sign gate · intent-drift"},
+    {id:"capability",n:"Capability registry",s:"provider · resolver · renderer plugins"},
+    {id:"orchestration",n:"Orchestration",s:"mission executor · imperative shell · EXPLAIN"},
+  ]},
+  {plane:"SEAMS — the only crossings",cls:"seams",items:[
+    {id:"evidencestore",n:"EvidenceStore",s:"emit typed evidence"},
+    {id:"retriever",n:"Store / retriever",s:"hybrid_search"},
+    {id:"modelstore",n:"Durable-model store",s:"serialize transitions"},
+    {id:"keyring",n:"TenantKeyring",s:"encrypt-body invariant"},
+    {id:"digest",n:"RuntimeDigest",s:"hash → seal"},
+  ]},
+  {plane:"DATA PLANE",cls:"data",items:[
+    {id:"eventlog",n:"Evidence / event log",s:"append-only · hash-chained ledger"},
+    {id:"rag",n:"RAG / vector store",s:"redevops-rag Store · citation graph"},
+    {id:"outcomes",n:"Outcome logs",s:"LearningOutcome · trajectory"},
+    {id:"provenance",n:"Provenance digests",s:"RuntimeDigest records · seal"},
+    {id:"secrets",n:"Secret ciphertext",s:"scoped store · Vault at rest"},
+    {id:"assets",n:"Assets & caches",s:"render_hash · object store"},
+  ]},
+];
+
+function renderRuntimeMap(){
+  const body=$("#rt-body"); body.innerHTML="";
+  RUNTIME.forEach((p,i)=>{
+    const pl=el("div","plane "+p.cls);
+    pl.innerHTML='<div class="pl-h"><span class="dot"></span>'+esc(p.plane)+'</div>';
+    const nodes=el("div","rnodes");
+    p.items.forEach(it=>{
+      const nd=el("div","rnode"); nd.dataset.id=it.id;
+      nd.innerHTML='<div class="n">'+esc(it.n)+'</div><div class="s">'+esc(it.s)+'</div>';
+      nodes.appendChild(nd);
+    });
+    pl.appendChild(nodes); body.appendChild(pl);
+    if(i<RUNTIME.length-1) body.appendChild(el("div","seamflow","▼"));
+  });
+}
+
+// which runtime elements a given step exercises, + a one-line explanation
+function stepInfo(){
+  const signed=DATA&&(DATA.status==="signed"||DATA.status==="rejected");
+  const A=new Set(["contracts"]);                              // the deliverable is always a claim graph
+  if(OPENTYPE==="FACT"){A.add("evidencestore");A.add("eventlog");
+    return {ids:A,note:"A factual claim: typed evidence emitted through the EvidenceStore seam into the append-only event log."};}
+  if(OPENTYPE==="AUTHORITY_INTERPRETATION"){A.add("retriever");A.add("rag");
+    return {ids:A,note:"Cited authority: the Store/retriever seam re-retrieves the passage from the RAG corpus — grounding, not recall."};}
+  if(OPENTYPE==="NUMBER"){A.add("orchestration");A.add("provenance");A.add("digest");
+    return {ids:A,note:"A computed number: a deterministic Computation (Orchestration), cross-checked A=B, recorded as a provenance digest."};}
+  if(OPENTYPE==="PROFESSIONAL_JUDGMENT"){A.add("decision");A.add("capability");A.add("governance");
+    return {ids:A,note:"Professional judgment: Context Runtime + a provider plugin fill per-criterion assessments; a governance policy concludes — never the model."};}
+  if(REVIEWCTX==="amend"){A.add("governance");A.add("eventlog");A.add("outcomes");A.add("decision");
+    return {ids:A,note:"An amendment: a LearningOutcome (Outcome logs) tunes retrieval/extraction/drafting — the calculation rules are untouched."};}
+  if(signed){A.add("governance");A.add("eventlog");A.add("digest");A.add("provenance");
+    return {ids:A,note:"Signed: the governance sign gate seals the append-only ledger; RuntimeDigest hashes the evidence bundle."};}
+  if(CURTAB==="evidence"){["evidencestore","eventlog","rag","provenance","orchestration"].forEach(x=>A.add(x));
+    return {ids:A,note:"Evidence: typed evidence + cross-checked computations behind the EvidenceStore seam, with grounding from the RAG store."};}
+  if(CURTAB==="explain"){["orchestration","decision","governance"].forEach(x=>A.add(x));
+    return {ids:A,note:"Explain: the Orchestration EXPLAIN view narrates the decision & governance path that produced each disposition."};}
+  if(CURTAB==="ledger"){["eventlog","digest","provenance"].forEach(x=>A.add(x));
+    return {ids:A,note:"Ledger: the append-only, hash-chained event log — sealed and made tamper-evident by RuntimeDigest."};}
+  // deliverable tab, nothing open
+  ["capability","orchestration","governance","eventlog"].forEach(x=>A.add(x));
+  return {ids:A,note:"The deliverable is a claim graph (Value contracts) the runtime rendered and governed. Click any claim to trace it to a plane."};
+}
+
+function updateRuntimeMap(){
+  const {ids,note}=stepInfo();
+  $("#rt-note").textContent=note;
+  document.querySelectorAll("#rt-body .rnode").forEach(nd=>{
+    nd.classList.toggle("active",ids.has(nd.dataset.id));
+  });
+}
+
+function toggleRuntimeMap(force){
+  const m=$("#rtmap"),b=$("#rtbtn");
+  const open=force!==undefined?force:!m.classList.contains("open");
+  m.classList.toggle("open",open); m.setAttribute("aria-hidden",String(!open));
+  b.classList.toggle("on",open);
+  if(open)updateRuntimeMap();
 }
 
 function render(d){
@@ -418,6 +557,7 @@ function render(d){
   renderEvidence(d);
   renderExplain(d.explain);
   renderLedger(d);
+  updateRuntimeMap();
 }
 
 /* ---------- engagement zoom-out ---------- */
@@ -486,9 +626,9 @@ function signBar(d){
 
   approve.onclick=()=>doSign("APPROVE");
   reject.onclick=()=>{ if(confirm("Reject this deliverable? This is recorded to the ledger.")) doSign("REJECT"); };
-  amendBtn.onclick=()=>{form.hidden=!form.hidden;};
+  amendBtn.onclick=()=>{form.hidden=!form.hidden; REVIEWCTX=form.hidden?null:"amend"; updateRuntimeMap();};
   form.addEventListener("click",e=>{
-    if(e.target.id==="am-cancel"){form.hidden=true;}
+    if(e.target.id==="am-cancel"){form.hidden=true; REVIEWCTX=null; updateRuntimeMap();}
     if(e.target.id==="am-do"){
       doSign("AMEND",[{claim_id:$("#am-claim").value,stage:"assessment",ai_choice:"assessment",
         reason:$("#am-reason").value}]);
@@ -499,6 +639,7 @@ function signBar(d){
 function doSign(decision,amendments){
   post("/api/sign",{decision,amendments}).then(out=>{
     if(out.error){alert(out.error);return;}
+    REVIEWCTX=null;
     apply(out);
     window.scrollTo({top:0,behavior:"smooth"});
   });
@@ -617,6 +758,7 @@ function renderRuntime(rt){
 
 /* ---------- drawer ---------- */
 function openDrawer(c){
+  OPENTYPE=c.type; updateRuntimeMap();
   $("#d-type").textContent=TYPE_LABEL[c.type]||c.type;
   $("#d-type").style.color=TYPE_COLOR[c.type];
   $("#d-assertion").textContent=c.assertion;
@@ -642,6 +784,7 @@ function openDrawer(c){
 function closeDrawer(){
   $("#scrim").classList.remove("open");
   const dr=$("#drawer"); dr.classList.remove("open"); dr.setAttribute("aria-hidden","true");
+  OPENTYPE=null; updateRuntimeMap();
 }
 $("#d-close").onclick=closeDrawer; $("#scrim").onclick=closeDrawer;
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeDrawer();});
@@ -802,13 +945,20 @@ function renderLedger(d){
 }
 
 /* ---------- tabs ---------- */
-document.querySelectorAll("nav.tabs button").forEach(b=>{
+document.querySelectorAll("nav.tabs button[data-tab]").forEach(b=>{
   b.onclick=()=>{
-    document.querySelectorAll("nav.tabs button").forEach(x=>x.classList.remove("active"));
+    document.querySelectorAll("nav.tabs button[data-tab]").forEach(x=>x.classList.remove("active"));
     b.classList.add("active");
+    CURTAB=b.dataset.tab;
     ["deliverable","evidence","explain","ledger"].forEach(t=>{$("#tab-"+t).hidden=b.dataset.tab!==t;});
+    updateRuntimeMap();
   };
 });
+
+/* ---------- runtime map init ---------- */
+renderRuntimeMap();
+$("#rtbtn").onclick=()=>toggleRuntimeMap();
+if(window.innerWidth>=1400) toggleRuntimeMap(true);            // open by default with room to spare
 </script>
 </body>
 </html>
