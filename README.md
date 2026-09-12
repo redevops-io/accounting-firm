@@ -4,6 +4,9 @@ An **AI-native accounting firm**, composed over the ReDevOps runtime stack. Mult
 professional deliverables to a standard a licensed **CPA reviews and signs** — from messy client source
 material, at a fixed price. The firm sells an **outcome**, not software.
 
+**The whole thing in one page:** [`docs/FLOW.md`](docs/FLOW.md) — what a deliverable is, how it's produced,
+the trust model, the demo walkthrough, and the runtime map, end to end.
+
 This repo is the **composition layer**. The deterministic engines live in the runtimes
 (`accounting-runtime`, `personal-tax-runtime`); evidence retrieval in `redevops-rag`; governance/HITL and the
 durable ledger in `agentic-os`; retrieval/model optimization + learning in `context-runtime`. The
