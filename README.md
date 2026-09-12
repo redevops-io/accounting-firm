@@ -1,5 +1,7 @@
 # accounting-firm
 
+[![NVIDIA Inception](https://img.shields.io/badge/NVIDIA-Inception%20Program%20Member-76B900.svg)](https://www.nvidia.com/en-us/startups/)
+
 An **AI-native accounting firm**, composed over the ReDevOps runtime stack. Multi-agent workflows draft
 professional deliverables to a standard a licensed **CPA reviews and signs** — from messy client source
 material, at a fixed price. The firm sells an **outcome**, not software.
