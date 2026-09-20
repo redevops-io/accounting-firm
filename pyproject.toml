@@ -9,7 +9,7 @@ dependencies = []                      # core is stdlib-only (deterministic + go
 [project.optional-dependencies]
 llm = ["httpx>=0.27"]                  # extraction/assessment/drafting seams (Context Runtime model calls)
 runtime = [                            # compose onto the real runtimes
-  "redevops-rag @ git+https://github.com/redevops-io/redevops-rag.git@main",
+  "redevops-rag @ git+https://github.com/redevops-io/redevops-rag.git@v0.4.0",
 ]
 dev = ["pytest>=8.0"]
 
