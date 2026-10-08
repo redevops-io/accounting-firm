@@ -143,13 +143,55 @@ def _http_chat(base: str, key: str, model: str):
     return chat
 
 
+def _governed_chat(model: str):
+    """A chat_fn routed through the kernel's GovernedLLM — the N7 private-data boundary for the firm.
+
+    Accounting working papers are CUSTOMER_CONFIDENTIAL, so the request is classified as such and the
+    GovernedModelRouter decides the route fail-closed: in STRICT_PRIVATE / PRIVATE_WITH_ENGINEERING_ASSIST
+    mode it can only reach an in-boundary endpoint; an external frontier route is refused
+    (``RoutingRefused``), never silently taken. The transport calls the endpoint the router ALREADY chose
+    (reading its ``network_route``), so it cannot re-route around the governance decision, and every call
+    yields an ``InferenceReceipt``. Requires the kernel (agentic_os) on the path — the runtime image.
+    """
+    from agentic_os.app.llm import GovernedLLM
+    from agentic_os.app.transports import OpenAICompatibleTransport
+    from agentic_os.governance.classification import DataClassification
+    from agentic_os.governance.routing import ExecutionBoundary, ModelEndpoint, TaskClass
+
+    base = os.environ.get("REDEVOPS_LLM_BASE_URL") or os.environ.get("FIRM_LLM_BASE_URL", "")
+    # The approved in-boundary route for the firm's private evidence. Its network_route is what the
+    # transport uses; declaring boundary=IN_BOUNDARY means the router will never send this data outside.
+    endpoint = ModelEndpoint(model_id=model, provider="self-hosted",
+                             boundary=ExecutionBoundary.IN_BOUNDARY,
+                             accepts=DataClassification.CUSTOMER_CONFIDENTIAL, network_route=base)
+    gov = GovernedLLM.from_env(endpoints=(endpoint,), transport=OpenAICompatibleTransport.from_env())
+
+    def chat(system: str, user: str) -> str:
+        res = gov.complete(f"{system}\n\n{user}", task_class=TaskClass.BUSINESS_REASONING,
+                           classifications=(DataClassification.CUSTOMER_CONFIDENTIAL,),
+                           system=system, max_tokens=1200, temperature=0)
+        return res.text
+    return chat
+
+
 def select_provider(chat_fn=None):
-    """LLMProvider when a chat_fn is given or FIRM_LLM_* is configured; else the deterministic default."""
+    """LLMProvider when a chat_fn is given or FIRM_LLM_* is configured; else the deterministic default.
+
+    ``FIRM_LLM_GOVERNED=1`` routes the model through the kernel's GovernedLLM (classification-gated,
+    receipted, fail-closed on an external route) instead of a raw OpenAI-compatible call — the N7
+    private-data boundary. Falls through to the raw/deterministic paths if the kernel isn't importable,
+    so the offline demo stays reliable."""
     if chat_fn is not None:
         return LLMProvider(chat_fn)
+    model = os.environ.get("FIRM_LLM_MODEL", "kimi-k2.6")
+    if os.environ.get("FIRM_LLM_GOVERNED") == "1":
+        try:
+            return LLMProvider(_governed_chat(model))
+        except Exception:                                       # kernel absent / misconfigured → fall through
+            pass
     base, key = os.environ.get("FIRM_LLM_BASE_URL"), os.environ.get("FIRM_LLM_API_KEY")
     if base and key:
-        return LLMProvider(_http_chat(base, key, os.environ.get("FIRM_LLM_MODEL", "kimi-k2.6")))
+        return LLMProvider(_http_chat(base, key, model))
     return DeterministicProvider()
 
 

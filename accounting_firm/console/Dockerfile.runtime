@@ -1,0 +1,39 @@
+# CPA review console — RUNTIME-NATIVE image (demo.redevops.io/accounting).
+#
+# Unlike the stdlib-only Dockerfile, this one installs the ReDevOps kernel (agentic_os) and turns the
+# runtime seams ON by default:
+#   · FIRM_LEDGER=agentic-os      -> durable append-only event ledger (N4/N5), here the zero-dep JSONL store
+#   · FIRM_CORPUS=context         -> authority grounding through the Context Runtime door (N6)
+#   · FIRM_LLM_GOVERNED (opt-in)  -> the model routed through the governed LLM (N7); left OFF here so the
+#                                    hosted demo stays reliable with the deterministic provider. Set it +
+#                                    REDEVOPS_LLM_BASE_URL in the compose when an in-boundary model is wired.
+# Every seam falls back to the offline path if the kernel misbehaves, so the demo can't be taken down by it.
+#
+# Build (from the repo root):
+#   docker build -f accounting_firm/console/Dockerfile.runtime -t accounting-console:runtime .
+FROM python:3.12-slim
+
+WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends git \
+    && rm -rf /var/lib/apt/lists/*
+
+# The kernel: governed LLM + Context Runtime + durable ledger. No ML deps (grounds over the curated
+# corpus via the Context Runtime; add redevops-rag for the full corpus).
+RUN pip install --no-cache-dir "agentic-os @ git+https://github.com/redevops-io/agentic-os.git@v0.3.21"
+
+# App source runs in place (keeps demo_data relative to the CWD, as the stdlib image does).
+COPY accounting_firm/ ./accounting_firm/
+COPY demo_data/ ./demo_data/
+
+ENV FIRM_CONSOLE_HOST=0.0.0.0 \
+    FIRM_CONSOLE_PORT=8108 \
+    FIRM_CONSOLE_BASE=/accounting \
+    FIRM_LEDGER=agentic-os \
+    MISSION_EVENT_BACKEND=jsonl \
+    MISSION_EVENT_PATH=/data/ledger/events.jsonl \
+    FIRM_CORPUS=context \
+    REDEVOPS_PRIVACY_MODE=strict_private \
+    PYTHONUNBUFFERED=1
+
+EXPOSE 8108
+CMD ["python", "-m", "accounting_firm.console"]

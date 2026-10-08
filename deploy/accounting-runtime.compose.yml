@@ -1,0 +1,38 @@
+# demo.redevops.io/accounting — CPA review console, RUNTIME-NATIVE (composed on the ReDevOps kernel).
+#   accounting-api :8108 (stdlib console) with the runtime seams ON:
+#     · durable append-only event ledger (FIRM_LEDGER=agentic-os, JSONL store in the volume) — N4/N5
+#     · authority grounding through the Context Runtime (FIRM_CORPUS=context)           — N6
+#     · governed model routing (FIRM_LLM_GOVERNED) is OPT-IN — set it + REDEVOPS_LLM_BASE_URL to an
+#       in-boundary model to turn N7 on; left off here so the hosted demo runs on the deterministic
+#       provider (no model dependency). Every seam falls back to offline if the kernel misbehaves.
+#   cloudflared: demo.redevops.io ^/accounting -> 192.168.40.105:8108
+#   Replaces the hand-run `docker run accounting-console:latest` with a compose-managed, runtime-wired service.
+services:
+  accounting-api:
+    build:
+      context: ..
+      dockerfile: accounting_firm/console/Dockerfile.runtime
+    image: ${ACCT_IMAGE:-accounting-console:runtime}
+    container_name: accounting-api
+    restart: unless-stopped
+    # host networking: binds :8108 directly (cloudflared -> 192.168.40.105:8108). The proxmox default
+    # bridge address pools are exhausted (many ephemeral networks), so avoid a per-project network.
+    network_mode: host
+    environment:
+      - FIRM_LEDGER=agentic-os
+      - MISSION_EVENT_BACKEND=jsonl
+      - MISSION_EVENT_PATH=/data/ledger/events.jsonl
+      - FIRM_CORPUS=context
+      - REDEVOPS_PRIVACY_MODE=strict_private
+      # Turn N7 on by wiring an in-boundary model:
+      # - FIRM_LLM_GOVERNED=1
+      # - REDEVOPS_LLM_BASE_URL=http://<in-boundary-model>/v1
+      # - FIRM_LLM_MODEL=<model-id>
+    volumes:
+      - accounting_ledger:/data/ledger
+    security_opt:
+      - seccomp=unconfined
+      - apparmor=unconfined
+
+volumes:
+  accounting_ledger:
