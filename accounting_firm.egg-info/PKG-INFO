@@ -1,0 +1,17 @@
+Metadata-Version: 2.4
+Name: accounting-firm
+Version: 0.0.1
+Summary: AI-native accounting firm — CPA-signed deliverables composed over the ReDevOps runtime stack
+License: AGPL-3.0-only
+Requires-Python: >=3.10
+License-File: LICENSE
+Provides-Extra: llm
+Requires-Dist: httpx>=0.27; extra == "llm"
+Provides-Extra: kernel
+Requires-Dist: agentic-os @ git+https://github.com/redevops-io/agentic-os.git@v0.3.21 ; extra == "kernel"
+Provides-Extra: runtime
+Requires-Dist: agentic-os @ git+https://github.com/redevops-io/agentic-os.git@v0.3.21 ; extra == "runtime"
+Requires-Dist: redevops-rag @ git+https://github.com/redevops-io/redevops-rag.git@v0.4.0 ; extra == "runtime"
+Provides-Extra: dev
+Requires-Dist: pytest>=8.0; extra == "dev"
+Dynamic: license-file
