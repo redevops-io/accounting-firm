@@ -3,11 +3,11 @@
 pytest>=8.0
 
 [kernel]
-agentic-os @ git+https://github.com/redevops-io/agentic-os.git@v0.3.31
+agentic-os @ git+https://github.com/redevops-io/agentic-os.git@v0.3.21
 
 [llm]
 httpx>=0.27
 
 [runtime]
-agentic-os @ git+https://github.com/redevops-io/agentic-os.git@v0.3.31
+agentic-os @ git+https://github.com/redevops-io/agentic-os.git@v0.3.21
 redevops-rag @ git+https://github.com/redevops-io/redevops-rag.git@v0.4.0
