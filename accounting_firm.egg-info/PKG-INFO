@@ -8,9 +8,9 @@ License-File: LICENSE
 Provides-Extra: llm
 Requires-Dist: httpx>=0.27; extra == "llm"
 Provides-Extra: kernel
-Requires-Dist: agentic-os @ git+https://github.com/redevops-io/agentic-os.git@v0.3.21 ; extra == "kernel"
+Requires-Dist: agentic-os @ git+https://github.com/redevops-io/agentic-os.git@v0.3.31 ; extra == "kernel"
 Provides-Extra: runtime
-Requires-Dist: agentic-os @ git+https://github.com/redevops-io/agentic-os.git@v0.3.21 ; extra == "runtime"
+Requires-Dist: agentic-os @ git+https://github.com/redevops-io/agentic-os.git@v0.3.31 ; extra == "runtime"
 Requires-Dist: redevops-rag @ git+https://github.com/redevops-io/redevops-rag.git@v0.4.0 ; extra == "runtime"
 Provides-Extra: dev
 Requires-Dist: pytest>=8.0; extra == "dev"
