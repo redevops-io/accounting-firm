@@ -155,4 +155,3 @@ Licensure of the signing CPA + PTIN/EFIN; E&O/malpractice cover; SOC 2 + PII/ret
 applicable; state practice rules. AGPL-3.0.
 
 The wording of this section and of any "fixed price" / "outcome" language above is subject to review for
-regulated-services implications; no legal conclusion is made here.

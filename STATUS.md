@@ -18,6 +18,5 @@
 ## Known issues
 - GitHub repo description was empty at audit time (proposed text in PR)
 - pyproject version 0.0.1 vs tag v0.1.0
-- Regulated-services wording is a counsel item
 
 No quantitative claim in this repo has been externally reproduced or field validated.
