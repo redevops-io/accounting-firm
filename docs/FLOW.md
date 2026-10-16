@@ -1,7 +1,7 @@
 # The accounting firm, end to end — one flow
 
 A single description of how the AI-native accounting firm works and how the demo tells that story. For the
-design rationale see the repo `README.md`; for the phase history see `~/Documents/ACCOUNTING_FIRM_DEMO_PLAN.md`.
+design rationale see the repo `README.md`; for the phase history see `ACCOUNTING_FIRM_DEMO_PLAN.md` (a local planning document, not included in this repo).
 
 **Thesis:** *AI did the work. Deterministic engines did the math. Evidence supports every material claim.
 The CPA remains the authority.*

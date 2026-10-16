@@ -2,18 +2,47 @@
 
 [![NVIDIA Inception](https://img.shields.io/badge/NVIDIA-Inception%20Program%20Member-76B900.svg)](https://www.nvidia.com/en-us/startups/)
 
-An **AI-native accounting firm**, composed over the ReDevOps runtime stack. Multi-agent workflows draft
-professional deliverables to a standard a licensed **CPA reviews and signs** — from messy client source
-material, at a fixed price. The firm sells an **outcome**, not software.
+> **Synthetic-data demo, simulation-only. Not a service offer.** Nothing in this repo is an accounting, tax or
+> professional service, and no real client work is performed or offered. All inputs are synthetic, all figures
+> are demo output, and the gates required before any real client deliverable are **not yet in place**
+> (see [Not yet](#not-yet-hard-fail-closed-gates-before-any-real-client-deliverable) at the bottom: CPA licensure +
+> PTIN/EFIN, E&O/malpractice cover, SOC 2 + PII/retention, e-file/MeF, state practice rules).
+
+**What it does.** A reference composition of multi-agent workflows that draft a deliverable (a §41 R&D credit
+study, an ASC 606 memo) from synthetic source material, to a standard a licensed **CPA would review and sign**.
+It is the design of an "AI-native accounting firm" (the design intent is a fixed-price outcome, not software), run
+here only on synthetic data.
+
+**Who it's for.** Engineers evaluating the ReDevOps runtime stack on a governed, human-in-the-loop deliverable
+workflow, and reviewers of the design.
+
+**Maturity: simulation-only** (pyproject `0.0.1`; git tag `v0.1.0`; see [STATUS.md](STATUS.md)).
+
+**3-minute example** (offline, synthetic data, from the repo root):
+```bash
+python3 demo.py           # flagship §41 study on a synthetic company
+python3 tests/test_section41.py
+```
+
+**Evidence.** Run the commands above and under [Run](#run); CI is `.github/workflows/tests.yml`. No committed
+result report.
+
+**Limitations.** Synthetic data; the authority corpus and the sibling runtimes are not in this repo (see below);
+not licensed, insured or audited for client work.
+
+**Docs.** [docs/FLOW.md](docs/FLOW.md) · [STATUS.md](STATUS.md) · [CONTRIBUTING.md](CONTRIBUTING.md) · [SECURITY.md](SECURITY.md)
+
+---
 
 **The whole thing in one page:** [`docs/FLOW.md`](docs/FLOW.md) — what a deliverable is, how it's produced,
 the trust model, the demo walkthrough, and the runtime map, end to end.
 
-This repo is the **composition layer**. The deterministic engines live in the runtimes
-(`accounting-runtime`, `personal-tax-runtime`); evidence retrieval in `redevops-rag`; governance/HITL and the
+This repo is the **composition layer**. The deterministic engines are described as living in sibling runtimes
+(`accounting-runtime`, `personal-tax-runtime`; **these are not in the org's public repositories**, and this repo's own
+`section41/` engine is what the demo runs); evidence retrieval in `redevops-rag`; governance/HITL and the
 durable ledger in `agentic-os`; retrieval/model optimization + learning in `context-runtime`. The
-verticalization is here — the runtimes stay general. See
-`~/Documents/AI_NATIVE_ACCOUNTING_FIRM_IMPLEMENTATION_PLAN.md`.
+verticalization is here — the runtimes stay general. The
+implementation plan (`AI_NATIVE_ACCOUNTING_FIRM_IMPLEMENTATION_PLAN.md`) is a local planning document and is **not included in this repo**.
 
 ## The design rule
 
@@ -36,7 +65,7 @@ messy docs → extract (+provenance) → reconcile → four-part test assessed p
 ```
 
 The demo qualifies *Project Atlas*, **escalates** *Project Borealis* (insufficient four-part-test evidence),
-computes a cross-checked **$43,400** credit (ASC), verifies all six claims, and records a signed,
+computes a cross-checked **$43,400** credit (ASC) (*Illustrative/synthetic*: output of `python3 demo.py` on a synthetic company, not a real client figure), verifies all six claims, and records a signed,
 hash-chained audit ledger.
 
 ## Two deliverables, one runtime (genericity)
@@ -71,7 +100,7 @@ trace** expandable (INGEST → … → CPA REVIEW). Status is operational langua
 cross-checked · Professional judgment ⚠ CPA review), with raw scores under Runtime details — the distinction
 conveyed is *deterministic computation vs. grounded judgment*, not offline vs. live mode.
 `FIRM_CONSOLE_PORT` / `FIRM_CONSOLE_HOST` override the bind; the runtime seams (`FIRM_LLM_*`,
-`FIRM_CORPUS=rag`, `FIRM_LEDGER=agentic-os`) apply unchanged. Plan: `~/Documents/ACCOUNTING_FIRM_DEMO_PLAN.md`.
+`FIRM_CORPUS=rag`, `FIRM_LEDGER=agentic-os`) apply unchanged. Plan: `ACCOUNTING_FIRM_DEMO_PLAN.md` (local planning document, **not included in this repo**).
 
 ## What is real vs. a seam
 
@@ -114,9 +143,11 @@ export FIRM_LLM_BASE_URL=http://<host>/v1 FIRM_LLM_MODEL=<model> FIRM_LLM_API_KE
 python3 demo.py
 ```
 
-Verified: the corpus index grounds real IRC §41 / ASC 606 authorities and rejects fabricated ones; the
-agentic-os DuckDB ledger persists the audit trail across restarts; the model seam drives judgment/drafting
-via any OpenAI-compatible endpoint. All default to offline when unset.
+**Not reproducible from this repo.** Earlier text here claimed verification that the corpus index grounds real
+IRC §41 / ASC 606 authorities and rejects fabricated ones, that the agentic-os ledger persists across restarts, and
+that the model seam works against an OpenAI-compatible endpoint. The authority corpus index is not in the repo
+(`scripts/build_corpus.py` needs a sibling `redevops-rag` virtualenv to build it), so those statements cannot be
+reproduced here and are **unverified** by this repo. Everything defaults to offline when unset.
 
 ## Not yet (hard, fail-closed gates before any real client deliverable)
 
