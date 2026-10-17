@@ -19,7 +19,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends git \
 
 # The kernel: governed LLM + Context Runtime + durable ledger. No ML deps (grounds over the curated
 # corpus via the Context Runtime; add redevops-rag for the full corpus).
-RUN pip install --no-cache-dir "agentic-os @ git+https://github.com/redevops-io/agentic-os.git@v0.3.31"
+RUN pip install --no-cache-dir "agentic-os @ git+https://github.com/redevops-io/agentic-os.git@v0.3.38"
 
 # App source runs in place (keeps demo_data relative to the CWD, as the stdlib image does).
 COPY accounting_firm/ ./accounting_firm/
