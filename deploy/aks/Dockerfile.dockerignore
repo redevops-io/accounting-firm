@@ -1,0 +1,25 @@
+# Deny by default: only what deploy/aks/Dockerfile COPYs can enter the build context, so a local .env, a key file or a
+# credential JSON in a working tree can never reach an image layer.
+*
+
+!LICENSE
+!accounting_firm
+!demo_data
+!deploy/aks/healthcheck.py
+
+**/__pycache__
+**/*.pyc
+**/test_*.py
+**/.env
+**/.env.*
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx
+**/id_rsa*
+**/id_ed25519*
+**/*credentials*.json
+**/*service-account*.json
+**/.netrc
+**/.git
+**/*.duckdb
