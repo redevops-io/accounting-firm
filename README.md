@@ -83,12 +83,17 @@ conclusion comes from the deliverable's `run()`. The one interaction it builds i
 
 > **"I don't believe this sentence." → click → "here is exactly why it exists."**
 
-Click any material statement for its provenance: the source document + locator (FACT), the re-retrieved
+Open any material statement (mouse or keyboard: each claim is a button; Esc closes the evidence panel and returns focus)
+for its provenance: the source document + locator (FACT), the re-retrieved
 authority passage (AUTHORITY_INTERPRETATION), the **cross-checked computation with Engine A = Engine B**
 (NUMBER), or the **claim graph** drawn from the four-part test (PROFESSIONAL_JUDGMENT). The spine is the
 **three-case trust model**, shown explicitly: *sufficient* → compute (the credit), *missing* → abstain
 (Project Borealis held), *conflicting* → reconcile/escalate (a payroll-vs-worksheet allocation mismatch,
 BLOCKING).
+
+**Shared demo session:** the console has no sign-in and holds one review session per deliverable in memory, shared by
+every visitor of a deployment (a fresh page load restarts a *completed* review, never one in progress); the study is
+synthetic (Northwind Traders) and nothing is filed or sent. The page says so under *Your decision*.
 
 The deliverable opens **ready for review**, not pre-signed. The CPA is the signing authority: **Approve**,
 **Amend a claim**, or **Reject** — the decision is applied to the *same* deliverable and **seals the
