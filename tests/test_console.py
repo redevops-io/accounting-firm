@@ -188,6 +188,69 @@ def test_http_endpoints_roundtrip_and_sign():
         httpd.shutdown()
 
 
+# --- accessibility / responsive contract of the page (P2): structural, so a regression is caught without a browser ---
+# The behavioural proof (keyboard, focus trap, axe, 375/768/1280 overflow) is the Playwright run documented in
+# the PR; these assertions pin the markup it depends on.
+import re
+
+PAGE = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                         "accounting_firm", "console", "static", "index.html"), encoding="utf-8").read()
+
+
+def test_page_has_a_main_landmark_and_a_skip_link():
+    assert len(re.findall(r"<main\b", PAGE)) == 1 and 'href="#main"' in PAGE
+
+
+def test_closed_drawer_is_inert_not_merely_aria_hidden():
+    # aria-hidden on a focusable subtree is the axe aria-hidden-focus failure; the closed panels must be `inert`.
+    drawer = re.search(r'<div class="drawer"[^>]*>', PAGE).group(0)
+    assert "inert" in drawer and "aria-hidden" not in drawer
+    assert 'role="dialog"' in drawer and 'aria-modal="true"' in drawer and "aria-labelledby" in drawer
+    assert "inert" in re.search(r'<aside class="rtmap"[^>]*>', PAGE).group(0)
+    assert "visibility:hidden" in PAGE                             # off-canvas panels are also out of the layout/tab order
+    assert 'setAttribute("aria-hidden"' not in PAGE
+
+
+def test_drawer_has_focus_management_and_escape():
+    for needle in ("DRAWER_OPENER", "setBackgroundInert", 'e.key==="Escape"', 'e.key==="Tab"&&drawerOpen()'):
+        assert needle in PAGE, needle
+
+
+def test_claims_and_engagement_cards_are_real_buttons():
+    assert 'el("button","claim' in PAGE and 'el("div","claim' not in PAGE       # "challenge any statement" by keyboard
+    assert 'el(actionable?"button":"div","ez' in PAGE
+    assert "row.onclick=()=>openDrawer(c,row)" in PAGE
+
+
+def test_sign_controls_and_amend_labels_are_kept_and_labelled():
+    for label in ("Approve &amp; sign", "Amend a claim…", "Reject", "Record amendment &amp; sign"):
+        assert label in PAGE, label
+    assert 'label for="am-claim"' in PAGE and 'label for="am-reason"' in PAGE
+
+
+def test_shared_demo_session_is_stated_on_the_page_and_no_auth_was_added():
+    assert 'id="sessionnote"' in PAGE and "Shared demo session" in PAGE and "no sign-in" in PAGE
+    assert not re.search(r"(?i)authorization|bearer|login-?form|type=\"password\"", PAGE)
+
+
+def test_narrow_screens_wrap_the_nav_instead_of_overflowing():
+    assert re.search(r"nav\.tabs\{[^}]*flex-wrap:wrap", PAGE)
+    assert "overflow-x:auto" in PAGE                                           # wide tables scroll inside their card
+
+
+def test_no_low_contrast_dim_text_tokens():
+    # --faint was #6b7385 (3.0-4.0:1 on the dark surfaces); AA needs 4.5:1 on every surface token.
+    def lum(h):
+        c = [int(h[i:i + 2], 16) / 255 for i in (1, 3, 5)]
+        c = [x / 12.92 if x <= 0.03928 else ((x + 0.055) / 1.055) ** 2.4 for x in c]
+        return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
+    tok = dict(re.findall(r"--([a-z0-9-]+):(#[0-9a-fA-F]{6})", PAGE))
+    for fg in ("faint", "muted", "block", "warn", "pass", "accent"):
+        for bg in ("bg", "surface", "surface-2", "surface-3"):
+            a, b = sorted((lum(tok[fg]), lum(tok[bg])), reverse=True)
+            assert (a + .05) / (b + .05) >= 4.5, (fg, bg)
+
+
 if __name__ == "__main__":
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     for fn in fns:

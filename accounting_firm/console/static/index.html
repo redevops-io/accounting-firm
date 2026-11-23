@@ -8,9 +8,9 @@
   :root{
     --bg:#0f1116; --surface:#171a22; --surface-2:#1e222d; --surface-3:#252a37;
     --border:#2b3140; --border-2:#3a4152;
-    --text:#e7e9f0; --muted:#9aa2b3; --faint:#6b7385;
+    --text:#e7e9f0; --muted:#9aa2b3; --faint:#8b93a6;
     --accent:#7aa2ff;
-    --pass:#4ec9a5; --warn:#e3a95a; --block:#e46a6a;
+    --pass:#4ec9a5; --warn:#e3a95a; --block:#ee7b7b;
     --number:#b48ef2; --fact:#6db6ff; --judgment:#4ec9a5; --authority:#e3c05a;
     --mono:"SF Mono",ui-monospace,"JetBrains Mono",Menlo,Consolas,monospace;
     --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
@@ -23,11 +23,20 @@
   a{color:var(--accent);text-decoration:none}
   code,.mono{font-family:var(--mono)}
   button{font:inherit}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .skip{position:absolute;left:12px;top:-60px;z-index:100;background:var(--accent);color:#08111f;
+        padding:8px 12px;border-radius:6px;font-weight:600}
+  .skip:focus{top:8px}
+  main:focus{outline:none}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  @media(prefers-reduced-motion:reduce){*,*:before,*:after{transition:none!important;animation:none!important;
+        scroll-behavior:auto!important}}
   .wrap{max-width:1120px;margin:0 auto;padding:0 22px 90px}
 
   header{border-bottom:1px solid var(--border);background:linear-gradient(180deg,#141824,#0f1116);
          position:sticky;top:0;z-index:20}
   .head{max-width:1120px;margin:0 auto;padding:16px 22px}
+  @media(max-width:720px){header{position:static}}   /* the header is ~540px tall at 375px: do not pin it */
   .brand{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
   .brand h1{font-size:17px;margin:0;font-weight:640;letter-spacing:-.01em}
   .brand .eng{color:var(--muted);font-size:13px}
@@ -43,11 +52,13 @@
   .pill.warn .dot{background:var(--warn)} .pill.warn{color:#f0dcbe}
   .pill b{color:var(--text);font-weight:600}
 
-  nav.tabs{display:flex;gap:2px;margin:0 auto;max-width:1120px;padding:0 22px}
+  nav.tabs{display:flex;gap:2px 2px;flex-wrap:wrap;margin:0 auto;max-width:1120px;padding:0 22px}
+  .tablist{display:flex;flex-wrap:wrap;gap:2px}
   nav.tabs button{background:none;border:none;color:var(--muted);font-size:13.5px;
        padding:11px 14px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
   nav.tabs button:hover{color:var(--text)}
   nav.tabs button.active{color:var(--text);border-bottom-color:var(--accent)}
+  @media(max-width:600px){nav.tabs .gbtn{margin-left:0}nav.tabs .rtbtn{margin:4px 4px 4px 0}}
 
   h2.sec{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint);
          margin:30px 0 12px;font-weight:650}
@@ -60,10 +71,12 @@
   .ez-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
   @media(max-width:720px){.ez-cards{grid-template-columns:1fr}}
   .ez{border:1px solid var(--border);background:var(--surface);border-radius:10px;padding:12px 14px;
-      display:flex;flex-direction:column;gap:6px;cursor:pointer;transition:border-color .12s,background .12s}
+      display:flex;flex-direction:column;gap:6px;cursor:pointer;transition:border-color .12s,background .12s;
+      color:inherit;text-align:left;font:inherit;width:100%}
+  div.ez{cursor:default}
   .ez:hover{border-color:var(--border-2)}
   .ez.current{border-color:var(--accent);background:var(--surface-2)}
-  .ez.disabled{cursor:default;opacity:.6}
+  .ez.disabled{cursor:default;border-style:dashed}
   .ez .t{font-size:13.5px;font-weight:600}
   .ez .s{font-size:12px;display:inline-flex;align-items:center;gap:6px;color:var(--muted)}
   .ez .s .m{font-size:12px}
@@ -149,10 +162,11 @@
              margin:14px 0 6px;font-weight:600}
   .claim{display:flex;align-items:flex-start;gap:11px;padding:11px 12px;border:1px solid var(--border);
          border-radius:9px;background:var(--surface);cursor:pointer;transition:border-color .12s,background .12s;
-         margin-bottom:2px}
+         margin-bottom:2px;width:100%;text-align:left;color:inherit;font:inherit}
+  .claim .txt,.claim .assertion,.claim .hint,.claim .st{display:block}
   .claim:hover{border-color:var(--border-2);background:var(--surface-2)}
   .claim.amended{border-color:rgba(227,169,90,.45)}
-  .claim .txt{flex:1}
+  .claim .txt{flex:1;min-width:0}
   .claim .assertion{font-size:14px}
   .badge{font-size:10px;font-weight:700;letter-spacing:.04em;padding:3px 7px;border-radius:5px;
          white-space:nowrap;margin-top:1px}
@@ -160,8 +174,9 @@
   .b-FACT{color:var(--fact);background:rgba(109,182,255,.12);border:1px solid rgba(109,182,255,.3)}
   .b-PROFESSIONAL_JUDGMENT{color:var(--judgment);background:rgba(78,201,165,.12);border:1px solid rgba(78,201,165,.3)}
   .b-AUTHORITY_INTERPRETATION{color:var(--authority);background:rgba(227,192,90,.12);border:1px solid rgba(227,192,90,.3)}
-  .chk{font-size:11px;color:var(--pass);white-space:nowrap;margin-top:3px;text-align:right}
-  .disp{font-size:10px;color:var(--faint);white-space:nowrap;margin-top:3px;text-align:right}
+  .chk{font-size:11px;color:var(--pass);white-space:nowrap;margin-top:3px;text-align:right;display:block}
+  .chk.no{color:var(--block)}
+  .disp{font-size:10px;color:var(--faint);white-space:nowrap;margin-top:3px;text-align:right;display:block}
   .disp.amended{color:var(--warn)} .disp.rejected{color:var(--block)}
   .claim .hint{font-size:11px;color:var(--faint);margin-top:3px}
 
@@ -180,6 +195,8 @@
   .num{font-family:var(--mono);text-align:right}
   .st-OK{color:var(--pass);font-weight:600}.st-MISMATCH{color:var(--block);font-weight:600}
   .card{background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:16px;margin-bottom:14px}
+  .card.scroll{overflow-x:auto}
+  .noteline{font-size:12.5px;color:var(--muted);margin:2px 0 10px}
 
   /* explain */
   .xcard{background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:15px 17px;margin-bottom:12px}
@@ -211,7 +228,7 @@
 
   /* guided tour — numbered badges + hover summary */
   .tour-seg{position:relative}
-  .tourbadge{position:absolute;top:10px;right:10px;width:22px;height:22px;border-radius:50%;
+  .tourbadge{position:absolute;top:10px;right:10px;width:22px;height:22px;border-radius:50%;padding:0;
     background:var(--accent);color:#08111f;font-size:12px;font-weight:800;display:flex;align-items:center;
     justify-content:center;z-index:6;box-shadow:0 2px 8px rgba(0,0,0,.45);cursor:help;border:2px solid var(--surface)}
   .tourbadge.inline{position:static;display:inline-flex;width:19px;height:19px;font-size:11px;
@@ -226,8 +243,9 @@
   .tourtip .tt{font-weight:700;margin-bottom:3px}
   .rtmap{position:fixed;left:0;top:0;bottom:0;width:344px;background:var(--surface);
     border-right:1px solid var(--border);transform:translateX(-100%);transition:transform .22s cubic-bezier(.4,0,.2,1);
-    z-index:45;overflow-y:auto;box-shadow:12px 0 40px rgba(0,0,0,.35)}
-  .rtmap.open{transform:none}
+    z-index:45;overflow-y:auto;box-shadow:12px 0 40px rgba(0,0,0,.35);visibility:hidden;
+    transition:transform .22s cubic-bezier(.4,0,.2,1),visibility 0s linear .22s}
+  .rtmap.open{transform:none;visibility:visible;transition:transform .22s cubic-bezier(.4,0,.2,1),visibility 0s}
   .rtmap .rh{position:sticky;top:0;background:var(--surface);border-bottom:1px solid var(--border);
     padding:14px 16px;z-index:1}
   .rtmap .rh .tt{font-size:13px;font-weight:600}
@@ -247,11 +265,13 @@
   .plane.data{border-color:rgba(78,201,165,.28)} .plane.data .pl-h{color:#77dcc0}
   .plane.data .pl-h .dot,.sw.data{background:#4ec9a5}
   .rnodes{display:flex;flex-direction:column;gap:6px}
-  .rnode{border:1px solid var(--border);border-radius:7px;padding:7px 9px;background:var(--bg);
-    opacity:.42;transition:opacity .18s,border-color .18s,box-shadow .18s}
-  .rnode .n{font-size:12px;font-weight:600}
+  .rnode{border:1px dashed var(--border-2);border-radius:7px;padding:7px 9px;background:var(--bg);
+    transition:border-color .18s,box-shadow .18s}
+  .rnode .n{font-size:12px;font-weight:600;color:var(--muted)}
   .rnode .s{font-size:10.5px;color:var(--faint);margin-top:1px;font-family:var(--mono)}
-  .rnode.active{opacity:1}
+  .rnode.active{border-style:solid}
+  .rnode.active .n{color:var(--text)}
+  .rnode.active .n:after{content:" \00b7  lit";color:var(--accent);font-weight:500}
   .plane.control .rnode.active{border-color:#8b93f0;box-shadow:0 0 0 1px rgba(139,147,240,.4),0 4px 16px rgba(139,147,240,.12)}
   .plane.seams .rnode.active{border-color:#d7b46a;box-shadow:0 0 0 1px rgba(215,180,106,.4),0 4px 16px rgba(215,180,106,.12)}
   .plane.data .rnode.active{border-color:#4ec9a5;box-shadow:0 0 0 1px rgba(78,201,165,.4),0 4px 16px rgba(78,201,165,.12)}
@@ -260,12 +280,13 @@
 
   /* drawer */
   .scrim{position:fixed;inset:0;background:rgba(6,8,12,.55);opacity:0;pointer-events:none;
-         transition:opacity .18s;z-index:40}
-  .scrim.open{opacity:1;pointer-events:auto}
+         transition:opacity .18s;z-index:40;visibility:hidden}
+  .scrim.open{opacity:1;pointer-events:auto;visibility:visible}
   .drawer{position:fixed;top:0;right:0;bottom:0;width:min(680px,94vw);background:var(--surface);
           border-left:1px solid var(--border);box-shadow:var(--shadow);transform:translateX(100%);
-          transition:transform .22s cubic-bezier(.4,0,.2,1);z-index:50;overflow-y:auto}
-  .drawer.open{transform:none}
+          transition:transform .22s cubic-bezier(.4,0,.2,1),visibility 0s linear .22s;z-index:50;overflow-y:auto;
+          visibility:hidden}
+  .drawer.open{transform:none;visibility:visible;transition:transform .22s cubic-bezier(.4,0,.2,1),visibility 0s}
   .drawer .dhead{position:sticky;top:0;background:var(--surface);border-bottom:1px solid var(--border);
        padding:16px 20px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
   .drawer .dbody{padding:18px 20px 60px}
@@ -295,6 +316,7 @@
   .resolved{font-size:11px;color:var(--pass);font-weight:600}
   .passage{font-size:13px;color:var(--muted);margin-top:7px;background:var(--bg);border-radius:7px;
            padding:10px 12px;border:1px solid var(--border);max-height:220px;overflow:auto}
+  .drawer h3:focus{outline:none}
 
   .graph{position:relative;margin:6px 0 4px}
   .graph svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
@@ -333,6 +355,7 @@
 </style>
 </head>
 <body>
+<a class="skip" href="#main">Skip to the review</a>
 <header>
   <div class="head">
     <div class="brand">
@@ -346,22 +369,24 @@
     </div>
     <div class="status-row" id="statusrow"></div>
   </div>
-  <nav class="tabs">
-    <button data-tab="deliverable" class="active">Deliverable</button>
-    <button data-tab="evidence">Evidence</button>
-    <button data-tab="explain">Explain</button>
-    <button data-tab="ledger">Ledger</button>
-    <button class="rtbtn gbtn" id="tourbtn" title="Show a numbered walkthrough with a summary on each segment">① Guide</button>
-    <button class="rtbtn" id="rtbtn" title="Show which runtime elements each step exercises">⧉ Runtime map</button>
+  <nav class="tabs" aria-label="Review sections">
+    <div class="tablist" role="tablist" aria-label="Review sections">
+      <button type="button" role="tab" id="tabbtn-deliverable" aria-controls="tab-deliverable" aria-selected="true" data-tab="deliverable" class="active">Deliverable</button>
+      <button type="button" role="tab" id="tabbtn-evidence" aria-controls="tab-evidence" aria-selected="false" tabindex="-1" data-tab="evidence">Evidence</button>
+      <button type="button" role="tab" id="tabbtn-explain" aria-controls="tab-explain" aria-selected="false" tabindex="-1" data-tab="explain">Explain</button>
+      <button type="button" role="tab" id="tabbtn-ledger" aria-controls="tab-ledger" aria-selected="false" tabindex="-1" data-tab="ledger">Ledger</button>
+    </div>
+    <button type="button" class="rtbtn gbtn" id="tourbtn" aria-pressed="true" title="Show a numbered walkthrough with a summary on each segment">① Guide</button>
+    <button type="button" class="rtbtn" id="rtbtn" aria-expanded="false" aria-controls="rtmap" title="Show which runtime elements each step exercises">⧉ Runtime map</button>
   </nav>
 </header>
 
-<div class="wrap">
-  <div id="tab-deliverable">
+<main class="wrap" id="main" tabindex="-1">
+  <div id="tab-deliverable" role="tabpanel" aria-labelledby="tabbtn-deliverable">
     <h2 class="sec" id="sec-deliverable">The deliverable — challenge any statement</h2>
-    <div class="lead">Every material sentence is a claim with provenance. Click one to see its evidence, cited
+    <div class="lead">Every material sentence is a claim with provenance. Select one to see its evidence, cited
       authority, or the cross-checked computation behind it.</div>
-    <div id="claims"></div>
+    <div id="claims" role="group" aria-label="Claims in the deliverable"></div>
 
     <h2 class="sec" id="sec-trust">The trust model — three cases, made explicit</h2>
     <div class="lead">The system computes only when evidence is sufficient. When evidence is missing it abstains;
@@ -369,7 +394,8 @@
     <div class="trust" id="trust"></div>
 
     <h2 class="sec">Your decision</h2>
-    <div id="reviewzone"></div>
+    <p class="noteline" id="sessionnote">Shared demo session: there is no sign-in, and every visitor to this page works on the same single review of synthetic data (Northwind Traders). A signature recorded here is visible to the next visitor until the page is next loaded after a completed review, which starts a fresh review. Nothing is filed or sent anywhere.</p>
+    <div id="reviewzone" aria-live="polite"></div>
 
     <h2 class="sec">The engagement</h2>
     <section class="engzoom" id="engzoom" hidden>
@@ -392,36 +418,36 @@
     </details>
   </div>
 
-  <div id="tab-evidence" hidden>
+  <div id="tab-evidence" role="tabpanel" aria-labelledby="tabbtn-evidence" hidden>
     <h2 class="sec">Deterministic computation — §41 Engine A = Engine B</h2>
     <div id="ev-comp"></div>
     <h2 class="sec">Reconciliations</h2>
     <div class="lead">Deterministic checks run before any judgment. A mismatch is blocking — the disputed figure
       is held, never averaged.</div>
-    <div class="card"><table class="grid" id="ev-recon"></table></div>
+    <div class="card scroll" tabindex="0" role="region" aria-label="Reconciliations table"><table class="grid" id="ev-recon"></table></div>
     <h2 class="sec">Source documents</h2>
-    <div class="card"><table class="grid" id="ev-docs"></table></div>
+    <div class="card scroll" tabindex="0" role="region" aria-label="Source documents table"><table class="grid" id="ev-docs"></table></div>
   </div>
 
-  <div id="tab-explain" hidden>
+  <div id="tab-explain" role="tabpanel" aria-labelledby="tabbtn-explain" hidden>
     <h2 class="sec">Explain — why the system reached this state</h2>
     <div class="lead">Plain-language reasoning behind each disposition. No black box: every choice traces to
       evidence, policy, and the human gate.</div>
     <div id="explain"></div>
   </div>
 
-  <div id="tab-ledger" hidden>
+  <div id="tab-ledger" role="tabpanel" aria-labelledby="tabbtn-ledger" hidden>
     <h2 class="sec">Evidence ledger — append-only, hash-chained</h2>
     <div class="lead">Every mission step and the CPA sign-off, in order, each entry chained to the last. Nothing
       is mutated; an amendment is a new entry, never an edit.</div>
     <div id="seal"></div>
-    <div class="card"><div class="lchain" id="ledger"></div></div>
+    <div class="card scroll" tabindex="0" role="region" aria-label="Ledger entries"><div class="lchain" id="ledger"></div></div>
   </div>
-</div>
+</main>
 
-<div class="tourtip" id="tourtip"></div>
+<div class="tourtip" id="tourtip" aria-hidden="true"></div>
 
-<aside class="rtmap" id="rtmap" aria-hidden="true">
+<aside class="rtmap" id="rtmap" aria-label="ReDevOps runtime map" inert>
   <div class="rh">
     <div class="tt">ReDevOps runtime — what this step exercises</div>
     <div class="nt" id="rt-note">A licensed accounting firm is one tenant on a general runtime. Watch which
@@ -435,13 +461,13 @@
 </aside>
 
 <div class="scrim" id="scrim"></div>
-<aside class="drawer" id="drawer" aria-hidden="true">
+<div class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="d-assertion" inert>
   <div class="dhead">
-    <div><div class="prov-h" style="margin:0 0 4px" id="d-type">—</div><h3 id="d-assertion">—</h3></div>
-    <button class="x" id="d-close" aria-label="Close">✕</button>
+    <div><div class="prov-h" style="margin:0 0 4px" id="d-type">—</div><h3 id="d-assertion" tabindex="-1">—</h3></div>
+    <button type="button" class="x" id="d-close" aria-label="Close claim details">✕</button>
   </div>
   <div class="dbody" id="d-body"></div>
-</aside>
+</div>
 
 <script>
 const $ = (s,r=document)=>r.querySelector(s);
@@ -555,8 +581,9 @@ function updateRuntimeMap(){
 function toggleRuntimeMap(force){
   const m=$("#rtmap"),b=$("#rtbtn");
   const open=force!==undefined?force:!m.classList.contains("open");
-  m.classList.toggle("open",open); m.setAttribute("aria-hidden",String(!open));
-  b.classList.toggle("on",open);
+  m.classList.toggle("open",open); m.inert=!open;
+  if(open)m.setAttribute("tabindex","0"); else m.removeAttribute("tabindex");   // a scrollable panel must be keyboard-scrollable
+  b.classList.toggle("on",open); b.setAttribute("aria-expanded",String(open));
   if(open)updateRuntimeMap();
 }
 
@@ -579,6 +606,7 @@ const TOUR=[
 function clearTour(){
   document.querySelectorAll(".tourbadge").forEach(b=>b.remove());
   document.querySelectorAll(".tour-seg").forEach(e=>e.classList.remove("tour-seg","hl"));
+  const h=$("#sec-deliverable"); if(h)h.removeAttribute("aria-label");
   hideTip();
 }
 
@@ -588,15 +616,19 @@ function applyTour(){
   TOUR.forEach((step,i)=>{
     const el=$(step.sel); if(!el)return;
     const n=i+1;
-    const badge=document.createElement("span");
+    const badge=document.createElement("button");
+    badge.type="button";
     badge.className="tourbadge"+(step.mode==="inline"?" inline":"");
     badge.textContent=n;
-    if(step.mode==="inline"){el.insertBefore(badge,el.firstChild);}
+    badge.setAttribute("aria-label","Guide step "+n+" of "+TOUR.length+": "+step.tt+". "+step.s);
+    if(step.mode==="inline"){                                  // keep the heading's own name free of the badge text
+      el.setAttribute("aria-label",el.textContent.trim()); el.insertBefore(badge,el.firstChild);}
     else{el.classList.add("tour-seg"); el.appendChild(badge);}
     const enter=()=>{ if(step.mode!=="inline")el.classList.add("hl"); showTip(badge,n,step); };
     const leave=()=>{ el.classList.remove("hl"); hideTip(); };
     (step.mode==="inline"?badge:el).addEventListener("mouseenter",enter);
     (step.mode==="inline"?badge:el).addEventListener("mouseleave",leave);
+    badge.addEventListener("focus",enter); badge.addEventListener("blur",leave);
   });
 }
 
@@ -612,11 +644,11 @@ function showTip(anchor,n,step){
   if(y+th>window.innerHeight-m) y=Math.max(m,r.top-th-8);     // flip above if no room below
   tip.style.left=x+"px"; tip.style.top=y+"px";
 }
-function hideTip(){$("#tourtip").classList.remove("show");}
+function hideTip(){const t=$("#tourtip");t.classList.remove("show");t.textContent="";}
 
 function toggleTour(force){
   TOUR_ON=force!==undefined?force:!TOUR_ON;
-  $("#tourbtn").classList.toggle("on",TOUR_ON);
+  $("#tourbtn").classList.toggle("on",TOUR_ON); $("#tourbtn").setAttribute("aria-pressed",String(TOUR_ON));
   applyTour();
 }
 
@@ -653,10 +685,13 @@ function renderEngagements(engs){
     rejected:["review","✕","Rejected"],available:["avail","○","Available"],not_started:["avail","○","Available"]};
   engs.forEach(e=>{
     const st=S[e.status]||S.available;
-    const card=el("div","ez"+(e.current?" current":"")+(e.available?"":" disabled"));
+    const actionable=e.available&&!e.current;
+    const card=el(actionable?"button":"div","ez"+(e.current?" current":"")+(e.available?"":" disabled"));
+    if(actionable)card.type="button";
+    if(e.current)card.setAttribute("aria-current","true");
     card.innerHTML='<div class="t">'+esc(e.title)+'</div>'+
       '<div class="s '+st[0]+'"><span class="m">'+st[1]+'</span>'+st[2]+'</div>';
-    if(e.available&&!e.current) card.onclick=()=>{closeDrawer();load(e.id);window.scrollTo({top:0,behavior:"smooth"});};
+    if(actionable) card.onclick=()=>{closeDrawer();load(e.id).then(()=>{window.scrollTo({top:0,behavior:"smooth"});$("#main").focus({preventScroll:true});});};
     box.appendChild(card);
   });
   $("#engzoom").hidden=false;
@@ -692,28 +727,33 @@ function signBar(d){
   const approve=el("button","btn pri","Approve &amp; sign");
   const amendBtn=el("button","btn warn","Amend a claim…");
   const reject=el("button","btn danger","Reject");
+  [approve,amendBtn,reject].forEach(b=>b.type="button");
+  amendBtn.setAttribute("aria-expanded","false"); amendBtn.setAttribute("aria-controls","amendform");
   btns.append(approve,amendBtn,reject); bar.appendChild(btns);
 
-  const form=el("div","amend"); form.hidden=true;
+  const form=el("div","amend"); form.hidden=true; form.id="amendform";
   const pjClaims=d.claims;
   const opts=pjClaims.map(c=>'<option value="'+c.claim_id+'">'+esc(c.claim_id)+' · '+
     esc((TYPE_LABEL[c.type]||c.type))+' — '+esc(c.assertion.slice(0,70))+'…</option>').join("");
   // default-select the professional judgment claim if present
   const pj=pjClaims.find(c=>c.type==="PROFESSIONAL_JUDGMENT");
-  form.innerHTML='<label>Claim to amend</label><select id="am-claim">'+opts+'</select>'+
-    '<label>Reviewer note (feeds the AI layer only — never the tax rules)</label>'+
+  form.innerHTML='<label for="am-claim">Claim to amend</label><select id="am-claim">'+opts+'</select>'+
+    '<label for="am-reason">Reviewer note (feeds the AI layer only — never the tax rules)</label>'+
     '<textarea id="am-reason">Engineering design review alone is not evidence of a process of experimentation; '+
     'require contemporaneous experimentation records.</textarea>'+
-    '<div class="btns"><button class="btn pri" id="am-do">Record amendment &amp; sign</button>'+
-    '<button class="btn ghost" id="am-cancel">Cancel</button></div>';
+    '<div class="btns"><button type="button" class="btn pri" id="am-do">Record amendment &amp; sign</button>'+
+    '<button type="button" class="btn ghost" id="am-cancel">Cancel</button></div>';
   bar.appendChild(form);
   if(pj) setTimeout(()=>{const s=$("#am-claim");if(s)s.value=pj.claim_id;},0);
 
   approve.onclick=()=>doSign("APPROVE");
   reject.onclick=()=>{ if(confirm("Reject this deliverable? This is recorded to the ledger.")) doSign("REJECT"); };
-  amendBtn.onclick=()=>{form.hidden=!form.hidden; REVIEWCTX=form.hidden?null:"amend"; updateRuntimeMap();};
+  amendBtn.onclick=()=>{form.hidden=!form.hidden; REVIEWCTX=form.hidden?null:"amend";
+    amendBtn.setAttribute("aria-expanded",String(!form.hidden)); updateRuntimeMap();
+    if(!form.hidden)$("#am-claim").focus();};
   form.addEventListener("click",e=>{
-    if(e.target.id==="am-cancel"){form.hidden=true; REVIEWCTX=null; updateRuntimeMap();}
+    if(e.target.id==="am-cancel"){form.hidden=true; REVIEWCTX=null; amendBtn.setAttribute("aria-expanded","false");
+      updateRuntimeMap(); amendBtn.focus();}
     if(e.target.id==="am-do"){
       doSign("AMEND",[{claim_id:$("#am-claim").value,stage:"assessment",ai_choice:"assessment",
         reason:$("#am-reason").value}]);
@@ -727,6 +767,8 @@ function doSign(decision,amendments){
     REVIEWCTX=null;
     apply(out);
     window.scrollTo({top:0,behavior:"smooth"});
+    const h=document.querySelector("#reviewzone .signed h3");  // the buttons just left the DOM: land on the result
+    if(h){h.tabIndex=-1;h.focus({preventScroll:true});}
   });
 }
 
@@ -741,8 +783,9 @@ function signedBanner(d){
     b.appendChild(impactPanel(d.amendment_impact,d.learning_outcomes));
   }
   const again=el("div","btns"); again.style.marginTop="14px";
-  const r=el("button","btn ghost","↻ Run the review again");
-  r.onclick=()=>post("/api/reset",{}).then(apply);
+  const r=el("button","btn ghost","↻ Run the review again"); r.type="button";
+  r.onclick=()=>post("/api/reset",{}).then(o=>{apply(o);const a=document.querySelector("#reviewzone .signbar h3");
+    if(a){a.tabIndex=-1;a.focus({preventScroll:true});}});
   again.appendChild(r); b.appendChild(again);
   return b;
 }
@@ -811,13 +854,14 @@ function renderClaims(claims){
     const g=el("div","cgroup");
     g.appendChild(el("h3",null,esc(sec.replace(/_/g," "))));
     groups[sec].forEach(c=>{
-      const row=el("div","claim"+(c.disposition==="amended"?" amended":""));
+      const row=el("button","claim"+(c.disposition==="amended"?" amended":""));
+      row.type="button"; row.setAttribute("aria-haspopup","dialog");
       row.innerHTML='<span class="badge b-'+c.type+'">'+esc((TYPE_LABEL[c.type]||c.type))+'</span>'+
-        '<div class="txt"><div class="assertion">'+esc(c.assertion)+'</div>'+
-        '<div class="hint">'+provHint(c)+'</div></div>'+
-        '<div>'+(c.verified?'<div class="chk">✓ verified</div>':'<div class="chk" style="color:var(--block)">✕ blocked</div>')+
-        (c.disposition?'<div class="disp '+c.disposition+'">'+esc(c.disposition)+'</div>':'')+'</div>';
-      row.onclick=()=>openDrawer(c);
+        '<span class="txt"><span class="assertion">'+esc(c.assertion)+'</span>'+
+        '<span class="hint">'+provHint(c)+'</span></span>'+
+        '<span class="st">'+(c.verified?'<span class="chk">✓ verified</span>':'<span class="chk no">✕ blocked</span>')+
+        (c.disposition?'<span class="disp '+c.disposition+'">'+esc(c.disposition)+'</span>':'')+'</span>';
+      row.onclick=()=>openDrawer(c,row);
       g.appendChild(row);
     });
     box.appendChild(g);
@@ -825,11 +869,11 @@ function renderClaims(claims){
 }
 function provHint(c){
   const p=c.provenance;
-  if(c.type==="NUMBER"&&p.computation) return "computed · Engine A = Engine B ✓ — click for the cross-check";
-  if(c.type==="FACT") return (p.evidence||[]).length+" source reference(s) — click to see the document + locator";
-  if(c.type==="AUTHORITY_INTERPRETATION") return (p.authority||[]).map(a=>a.authority).join(", ")+" — click for the passage";
-  if(c.type==="PROFESSIONAL_JUDGMENT") return "structured four-part assessment — click for the claim graph";
-  return "click for provenance";
+  if(c.type==="NUMBER"&&p.computation) return "computed · Engine A = Engine B ✓ — open the cross-check";
+  if(c.type==="FACT") return (p.evidence||[]).length+" source reference(s) — open to see the document and locator";
+  if(c.type==="AUTHORITY_INTERPRETATION") return (p.authority||[]).map(a=>a.authority).join(", ")+" — open for the passage";
+  if(c.type==="PROFESSIONAL_JUDGMENT") return "structured four-part assessment — open for the claim graph";
+  return "open for provenance";
 }
 
 function renderRuntime(rt){
@@ -842,7 +886,14 @@ function renderRuntime(rt){
 }
 
 /* ---------- drawer ---------- */
-function openDrawer(c){
+let DRAWER_OPENER=null;
+const BACKGROUND=["header","main",".skip","#rtmap"];
+function setBackgroundInert(on){
+  BACKGROUND.forEach(sel=>document.querySelectorAll(sel).forEach(n=>{
+    n.inert=on?true:(sel==="#rtmap"?!n.classList.contains("open"):false);}));
+}
+function openDrawer(c,opener){
+  DRAWER_OPENER=opener||document.activeElement;
   OPENTYPE=c.type; updateRuntimeMap();
   $("#d-type").textContent=TYPE_LABEL[c.type]||c.type;
   $("#d-type").style.color=TYPE_COLOR[c.type];
@@ -863,16 +914,38 @@ function openDrawer(c){
     cs.appendChild(r);
   });
   body.appendChild(cs);
+  hideTip(); setBackgroundInert(true);
   $("#scrim").classList.add("open");
-  const dr=$("#drawer"); dr.classList.add("open"); dr.setAttribute("aria-hidden","false"); dr.scrollTop=0;
+  const dr=$("#drawer"); dr.inert=false; dr.classList.add("open"); dr.scrollTop=0;
+  $("#d-assertion").focus({preventScroll:true});                // dialog opens on its title; Tab reaches Close next
 }
+function drawerOpen(){return $("#drawer").classList.contains("open");}
 function closeDrawer(){
+  if(!drawerOpen())return;
   $("#scrim").classList.remove("open");
-  const dr=$("#drawer"); dr.classList.remove("open"); dr.setAttribute("aria-hidden","true");
+  const dr=$("#drawer"); dr.classList.remove("open"); dr.inert=true;
+  setBackgroundInert(false);
   OPENTYPE=null; updateRuntimeMap();
+  const o=DRAWER_OPENER; DRAWER_OPENER=null;                    // give focus back to the claim that opened it
+  (o&&o.isConnected?o:$("#main")).focus({preventScroll:true});
 }
 $("#d-close").onclick=closeDrawer; $("#scrim").onclick=closeDrawer;
-document.addEventListener("keydown",e=>{if(e.key==="Escape")closeDrawer();});
+document.addEventListener("keydown",e=>{
+  if(e.key==="Escape"){
+    if(drawerOpen()){e.preventDefault();closeDrawer();}
+    else if($("#rtmap").classList.contains("open")&&!(e.target.closest&&e.target.closest("#amendform"))){toggleRuntimeMap(false);$("#rtbtn").focus();}
+    else hideTip();
+    return;
+  }
+  if(e.key==="Tab"&&drawerOpen()){                              // focus trap: Tab/Shift+Tab wrap inside the dialog
+    const f=[...$("#drawer").querySelectorAll('button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])')]
+      .filter(n=>!n.disabled&&n.offsetParent!==null);
+    if(!f.length)return;
+    const first=f[0], last=f[f.length-1], a=document.activeElement;
+    if(e.shiftKey&&(a===first||a===$("#d-assertion")||!$("#drawer").contains(a))){e.preventDefault();last.focus();}
+    else if(!e.shiftKey&&(a===last||!$("#drawer").contains(a))){e.preventDefault();first.focus();}
+  }
+});
 
 function computationView(comp){
   const w=el("div");
@@ -926,7 +999,7 @@ function authorityView(auths){
   auths.forEach(a=>{const c=el("div","ev");
     c.innerHTML='<div class="doc">'+esc(a.authority)+(a.passage_ref?' · '+esc(a.passage_ref):'')+'</div>'+
       (a.resolved?'<span class="resolved">✓ resolved in corpus</span>':'<span style="color:var(--block)">✕ unresolved</span>')+
-      (a.passage?'<div class="passage">'+esc(a.passage)+'</div>':''); w.appendChild(c);});
+      (a.passage?'<div class="passage" tabindex="0" role="region" aria-label="Cited passage">'+esc(a.passage)+'</div>':''); w.appendChild(c);});
   return w;
 }
 function graphView(j){
@@ -1030,10 +1103,16 @@ function renderLedger(d){
 }
 
 /* ---------- tabs ---------- */
-document.querySelectorAll("nav.tabs button[data-tab]").forEach(b=>{
+const TABBTNS=[...document.querySelectorAll("nav.tabs button[data-tab]")];
+TABBTNS.forEach((b,i)=>{
+  b.onkeydown=e=>{
+    const k={ArrowRight:1,ArrowLeft:-1}[e.key];
+    let j=k?(i+k+TABBTNS.length)%TABBTNS.length:e.key==="Home"?0:e.key==="End"?TABBTNS.length-1:-1;
+    if(j<0)return; e.preventDefault(); TABBTNS[j].focus(); TABBTNS[j].click();
+  };
   b.onclick=()=>{
-    document.querySelectorAll("nav.tabs button[data-tab]").forEach(x=>x.classList.remove("active"));
-    b.classList.add("active");
+    TABBTNS.forEach(x=>{x.classList.remove("active");x.setAttribute("aria-selected","false");x.tabIndex=-1;});
+    b.classList.add("active"); b.setAttribute("aria-selected","true"); b.tabIndex=0;
     CURTAB=b.dataset.tab;
     ["deliverable","evidence","explain","ledger"].forEach(t=>{$("#tab-"+t).hidden=b.dataset.tab!==t;});
     updateRuntimeMap();
