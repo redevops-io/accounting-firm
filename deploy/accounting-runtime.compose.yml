@@ -32,7 +32,6 @@ services:
       - accounting_ledger:/data/ledger
     security_opt:
       - seccomp=unconfined
-      - apparmor=unconfined
 
 volumes:
   accounting_ledger:
