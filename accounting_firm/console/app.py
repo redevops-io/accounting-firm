@@ -23,6 +23,7 @@ BASE = os.environ.get("FIRM_CONSOLE_BASE", "").rstrip("/")     # e.g. "/accounti
 
 # One live review session per deliverable (single-tenant demo surface). Reentrant lock: POST handlers hold
 # the lock while calling _get_session(), which locks again.
+MAX_BODY = 64 * 1024        # a sign request is a decision and a few amendments; anything larger is refused unread
 _sessions: dict[str, ReviewSession] = {}
 _lock = threading.RLock()
 
@@ -97,13 +98,24 @@ class _Handler(BaseHTTPRequestHandler):
         did = self._did()
         try:
             n = int(self.headers.get("Content-Length", 0) or 0)
+        except ValueError:
+            return self._send(400, b'{"error":"bad content length"}', "application/json")
+        if n < 0 or n > MAX_BODY:
+            return self._send(413, b'{"error":"request body too large"}', "application/json")
+        try:
             body = json.loads(self.rfile.read(n) or b"{}") if n else {}
         except Exception:
             return self._send(400, b'{"error":"bad json"}', "application/json")
+        if not isinstance(body, dict):
+            return self._send(400, b'{"error":"the body is a JSON object"}', "application/json")
         if path == "/api/sign":
+            amendments, cpa = body.get("amendments"), body.get("cpa", "A. Mats, CPA")
+            if not (amendments is None or (isinstance(amendments, list) and len(amendments) <= 200 and all(isinstance(a, dict) for a in amendments))):
+                return self._send(400, b'{"error":"amendments is a list of objects"}', "application/json")
+            if not isinstance(cpa, str) or not 1 <= len(cpa.strip()) <= 120:
+                return self._send(400, b'{"error":"cpa is a name of 1 to 120 characters"}', "application/json")
             with _lock:
-                out = _get_session(did).sign(body.get("decision", ""), body.get("amendments"),
-                                             body.get("cpa", "A. Mats, CPA"))
+                out = _get_session(did).sign(body.get("decision", ""), amendments, cpa.strip())
                 if "error" not in out:
                     out = _get_session(did).json(_statuses())          # refresh cross-deliverable statuses
             self._send(200 if "error" not in out else 409, json.dumps(out).encode(), "application/json")
