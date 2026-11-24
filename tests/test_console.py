@@ -224,3 +224,17 @@ def test_a_sign_request_is_bounded_and_shaped_before_anything_is_read_or_signed(
     finally:
         httpd.shutdown()
         httpd.server_close()
+
+
+def test_the_default_signer_is_explicitly_fictional_and_no_real_name_is_in_the_code():
+    """A public simulation must not attach a real person or a professional title to what it produces."""
+    import pathlib
+    from accounting_firm.contracts import DEMO_SIGNER
+    assert "fictional" in DEMO_SIGNER and "simulated" in DEMO_SIGNER
+    root = pathlib.Path(__file__).resolve().parents[1]
+    for path in list(root.glob("*.py")) + list((root / "accounting_firm").rglob("*.py")) + list((root / "accounting_firm").rglob("*.html")):
+        text = path.read_text(encoding="utf-8")
+        assert ", CPA\"" not in text and "Mats" not in text and "Rivera" not in text, path
+    s = ReviewSession()
+    out = s.sign("APPROVE")
+    assert "error" not in out and DEMO_SIGNER in json.dumps(s.json({}))

@@ -2,7 +2,7 @@
 import os
 import time
 
-from accounting_firm.contracts import Decision, Engagement, SignOff
+from accounting_firm.contracts import DEMO_SIGNER, Decision, Engagement, SignOff
 from accounting_firm.deliverables import tech_accounting_memo as memo
 
 DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "demo_data")
@@ -10,7 +10,7 @@ PATHS = {"contract": f"{DATA}/contract.txt", "trial_balance": f"{DATA}/trial_bal
 
 
 def cpa_review(d):
-    return SignOff("J. Rivera, CPA", time.time(), "full deliverable", Decision.APPROVE)
+    return SignOff(DEMO_SIGNER, time.time(), "full deliverable", Decision.APPROVE)
 
 
 def main() -> int:

@@ -15,6 +15,7 @@ import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlsplit
 
+from ..contracts import DEMO_SIGNER
 from .serialize import DEFAULT_ID, SPECS, ReviewSession
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -109,7 +110,7 @@ class _Handler(BaseHTTPRequestHandler):
         if not isinstance(body, dict):
             return self._send(400, b'{"error":"the body is a JSON object"}', "application/json")
         if path == "/api/sign":
-            amendments, cpa = body.get("amendments"), body.get("cpa", "A. Mats, CPA")
+            amendments, cpa = body.get("amendments"), body.get("cpa", DEMO_SIGNER)
             if not (amendments is None or (isinstance(amendments, list) and len(amendments) <= 200 and all(isinstance(a, dict) for a in amendments))):
                 return self._send(400, b'{"error":"amendments is a list of objects"}', "application/json")
             if not isinstance(cpa, str) or not 1 <= len(cpa.strip()) <= 120:
