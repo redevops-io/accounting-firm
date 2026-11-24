@@ -193,3 +193,34 @@ if __name__ == "__main__":
     for fn in fns:
         fn(); print("ok", fn.__name__)
     print(f"\n{len(fns)} passed")
+
+
+def test_a_sign_request_is_bounded_and_shaped_before_anything_is_read_or_signed():
+    """The console is a public demo: a request cannot make it read an unbounded body, and a malformed one is refused, not crashed on."""
+    import http.client
+    httpd = ThreadingHTTPServer(("127.0.0.1", 0), _Handler)
+    port = httpd.server_address[1]
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+
+    def post(body: bytes, length=None):
+        c = http.client.HTTPConnection("127.0.0.1", port, timeout=10)
+        c.request("POST", "/api/sign", body=body, headers={"Content-Type": "application/json", "Content-Length": str(len(body) if length is None else length)})
+        r = c.getresponse()
+        out = (r.status, json.loads(r.read() or b"{}"))
+        c.close()
+        return out
+
+    try:
+        assert post(b"", length=10 ** 12)[0] == 413, "a declared body of a terabyte is refused without being read"
+        assert post(b"[1, 2]")[0] == 400
+        assert post(json.dumps({"decision": "APPROVE", "amendments": "all"}).encode())[0] == 400
+        assert post(json.dumps({"decision": "APPROVE", "amendments": ["x"]}).encode())[0] == 400
+        assert post(json.dumps({"decision": "APPROVE", "cpa": "x" * 500}).encode())[0] == 400
+        assert post(json.dumps({"decision": "APPROVE", "cpa": ""}).encode())[0] == 400
+        status, out = post(json.dumps({"decision": "NOT-A-DECISION"}).encode())
+        assert status == 409 and "unknown decision" in out["error"]
+        state = json.loads(urllib.request.urlopen(f"http://127.0.0.1:{port}/api/deliverable").read())
+        assert state["status"] == "ready_for_review", "nothing above signed anything"
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
