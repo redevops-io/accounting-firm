@@ -10,6 +10,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum
 
+#: Who "signs" in the demos and in the public console when no name is given. Not a person: this is a simulation, and no real
+#: individual or professional title is attached to anything it produces.
+DEMO_SIGNER = "Demo Reviewer (fictional person, simulated CPA role)"
+
 
 # ── enums ────────────────────────────────────────────────────────────────────
 class Result(str, Enum):

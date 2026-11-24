@@ -14,7 +14,7 @@ import os
 import time
 from dataclasses import dataclass, field
 
-from ..contracts import Conclusion, Decision, Deliverable, Engagement, Result, SignOff
+from ..contracts import DEMO_SIGNER, Conclusion, Decision, Deliverable, Engagement, Result, SignOff
 from ..deliverables import rd_credit_study, tech_accounting_memo
 from ..resolvers import select_resolver
 
@@ -73,7 +73,7 @@ DEFAULT_ID = "rd_credit_study"
 
 
 def _auto_cpa(_d: Deliverable) -> SignOff:
-    return SignOff("A. Mats, CPA", time.time(), "full", Decision.APPROVE)
+    return SignOff(DEMO_SIGNER, time.time(), "full", Decision.APPROVE)
 
 
 # ── generic readers for a professional judgment (Judgment or ResearchQualification) ──
@@ -343,7 +343,7 @@ class ReviewSession:
     def reset(self) -> None:
         self._prepare()
 
-    def sign(self, decision: str, amendments: list | None = None, cpa: str = "A. Mats, CPA") -> dict:
+    def sign(self, decision: str, amendments: list | None = None, cpa: str = DEMO_SIGNER) -> dict:
         if self.deliverable.status != "ready_for_review":
             return {"error": f"deliverable is '{self.deliverable.status}', not open for signature"}
         try:

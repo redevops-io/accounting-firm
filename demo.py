@@ -6,7 +6,7 @@ extraction/assessment seams). Run:  python3 demo.py
 import os
 import time
 
-from accounting_firm.contracts import Decision, Engagement, SignOff
+from accounting_firm.contracts import DEMO_SIGNER, Decision, Engagement, SignOff
 from accounting_firm.deliverables import rd_credit_study
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -20,7 +20,7 @@ def cpa_review(d):
     """Stand-in CPA: reviews the claim graph, makes one wording amendment, approves-with-amendment."""
     fact = next(c for c in d.claims if c.section == "facts")
     fact.reviewer_disposition = "amended"
-    return SignOff(cpa_principal="J. Rivera, CPA", at=time.time(), scope="full deliverable",
+    return SignOff(cpa_principal=DEMO_SIGNER, at=time.time(), scope="full deliverable",
                    decision=Decision.AMEND,
                    amendments=[{"claim_id": fact.claim_id, "stage": "draft", "ai_choice": "wording",
                                 "before": fact.assertion, "after": fact.assertion + " (per payroll register).",
